@@ -22,6 +22,9 @@ pub struct ExecArgs {
     )]
     pub sender: Address,
 
+    #[clap(long = "no-std", help = "exec without std")]
+    pub no_std: bool,
+
     #[clap(
         name = "script_name",
         short = "s",
@@ -44,6 +47,7 @@ pub struct ExecArgs {
 pub fn run(args: ExecArgs) -> Result<()> {
     let ExecArgs {
         sender,
+        no_std,
         script_name,
         args,
     } = args;
@@ -61,7 +65,9 @@ pub fn run(args: ExecArgs) -> Result<()> {
             .to_string(),
     );
     targets.push(package.module_path().to_string_lossy().to_string());
-
+    if !no_std {
+        targets.extend(stdlib::stdlib_files());
+    }
     let (sources, compile_units) =
         move_lang::move_compile_no_report(&targets, &deps, Some(sender))?;
 
