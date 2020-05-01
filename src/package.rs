@@ -1,15 +1,12 @@
-use std::path::PathBuf;
 use anyhow::Result;
+use std::path::PathBuf;
 pub struct Package {
     dir: PathBuf,
-
 }
 
 impl Package {
     pub fn new(dir: PathBuf) -> Self {
-        Self {
-            dir
-        }
+        Self { dir }
     }
 
     pub fn script_path(&self, name: &str) -> PathBuf {
@@ -31,6 +28,6 @@ impl Package {
 pub fn get_current_package() -> Result<Option<Package>> {
     match crate::utils::get_package_root()? {
         None => Ok(None),
-        Some(p) => Ok(Some(Package::new(p)))
+        Some(p) => Ok(Some(Package::new(p))),
     }
 }

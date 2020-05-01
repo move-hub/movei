@@ -17,6 +17,7 @@ move-core-types = "0.1.0"
 move-vm-runtime = "0.1.0"
 move-vm-types = "0.1.0"
 move-vm-state = "0.1.0"
+move-ir-types = "0.1.0"
 stdlib = "0.1.0"
 libra-types = "0.1.0"
 vm = "0.1.0"
@@ -33,6 +34,7 @@ move-vm-runtime = {package = "move-vm-runtime", git = "https://github.com/move-h
 move-vm-types = {package = "move-vm-types", git = "https://github.com/move-hub/libra", branch = "master"}
 move-vm-state = {package = "move-vm-state", git = "https://github.com/move-hub/libra", branch = "master"}
 move-lang = {package = "move-lang", git = "https://github.com/move-hub/libra", branch = "master"}
+move-ir-types = {package = "move-ir-types", git = "https://github.com/move-hub/libra", branch = "master"}
 stdlib = {package="stdlib",  git = "https://github.com/move-hub/libra", branch = "master"}
 libra-types = {package="libra-types",  git = "https://github.com/move-hub/libra", branch = "master"}
 vm = {package="vm",  git = "https://github.com/move-hub/libra", branch = "master"}

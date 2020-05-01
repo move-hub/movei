@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 
-use crate::run::state::FakeDataStore;
+use crate::{
+    resolver::LoadedModules,
+    resource_fmt::ResourceFormatter,
+    run::{change_set::*, state::FakeDataStore},
+};
 use anyhow::{bail, Result};
 use bytecode_verifier::VerifiedModule;
 use clap::Clap;
@@ -17,29 +21,29 @@ pub struct ExecArgs {
     #[clap(
         name = "SENDER",
         long = "sender",
-        help = "address executing the script",
+        about = "address executing the script",
         parse(try_from_str=parse_address)
     )]
     pub sender: Address,
 
-    #[clap(long = "no-std", help = "exec without std")]
+    #[clap(long = "no-std", about = "exec without std")]
     pub no_std: bool,
 
     #[clap(
         name = "script_name",
         short = "s",
         long = "script",
-        help = "script to run"
+        about = "script to run"
     )]
     pub script_name: String,
 
     #[clap(
-    name = "arg",
-    short = "a",
-    long = "arg",
-    help = "script arguments",
-    parse(try_from_str=parse_as_transaction_argument),
-    multiple = true
+        name = "arg",
+        short = "a",
+        long = "arg",
+        about = "script arguments",
+        multiple = true,
+        parse(try_from_str=parse_as_transaction_argument)
     )]
     pub args: Vec<TransactionArgument>,
 }
@@ -104,8 +108,9 @@ pub fn run(args: ExecArgs) -> Result<()> {
         txn_meta.max_gas_amount(),
         &data_store,
     );
-    for verified_module in verified_modules {
-        vm.cache_module(verified_module, &mut chain_state).unwrap();
+    for verified_module in verified_modules.iter() {
+        vm.cache_module(verified_module.clone(), &mut chain_state)
+            .unwrap();
     }
 
     let main_script = main.unwrap();
@@ -123,7 +128,39 @@ pub fn run(args: ExecArgs) -> Result<()> {
         println!("{:?} when exec {}", &e, &script_name);
     } else {
         let output = chain_state.make_change_set().unwrap();
-        println!("{:#?}", &output);
+        let modules = LoadedModules::new(verified_modules);
+        let formatter = ResourceFormatter::new(&modules);
+
+        for (addr, cs) in output.into_changes() {
+            println!("address {:#x}:", addr);
+            for c in cs {
+                // indent
+                print!("  ");
+                match c {
+                    Change::DeleteResource(t, d) => {
+                        let old = formatter.fmt(&t, d)?;
+                        let cs = difference::Changeset::new(&old, "", "");
+                        println!("{}", &cs);
+                    }
+                    Change::AddResource(t, d) => {
+                        let new = formatter.fmt(&t, d)?;
+                        let cs = difference::Changeset::new("", &new, "");
+                        println!("{}", &cs);
+                    }
+                    Change::ModifyResource(t, old_data, new_data) => {
+                        let old = formatter.fmt(&t, old_data)?;
+                        let new = formatter.fmt(&t, new_data)?;
+                        let cs = difference::Changeset::new(&old, &new, "");
+                        println!("{}", &cs);
+                    }
+                    Change::AddModule(m, _) => {
+                        let new = format!("{:#x}::{}", m.address(), m.name());
+                        let cs = difference::Changeset::new("", &new, "");
+                        println!("{}", &cs);
+                    }
+                }
+            }
+        }
     }
 
     Ok(())

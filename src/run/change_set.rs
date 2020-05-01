@@ -8,6 +8,12 @@ pub struct ChangeSet {
     changes: BTreeMap<AccountAddress, Vec<Change>>,
 }
 
+impl ChangeSet {
+    pub fn into_changes(self) -> BTreeMap<AccountAddress, Vec<Change>> {
+        self.changes
+    }
+}
+
 impl From<ChangeSetMut> for ChangeSet {
     fn from(c: ChangeSetMut) -> Self {
         Self { changes: c.changes }
@@ -36,7 +42,12 @@ impl ChangeSetMut {
     ) {
         todo!()
     }
-    pub fn add_resource(&mut self, _address: AccountAddress, _layout: FatStructType, _value: Struct) {
+    pub fn add_resource(
+        &mut self,
+        _address: AccountAddress,
+        _layout: FatStructType,
+        _value: Struct,
+    ) {
         todo!()
     }
     pub fn modify_resource(

@@ -1,5 +1,5 @@
 use libra_types::access_path::AccessPath;
-use move_vm_state::{data_cache::RemoteCache};
+use move_vm_state::data_cache::RemoteCache;
 use vm::errors::VMResult;
 
 pub struct FakeDataStore;

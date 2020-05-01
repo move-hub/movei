@@ -15,6 +15,8 @@ pub mod utils;
 
 mod hosts;
 mod package;
+pub mod resolver;
+pub mod resource_fmt;
 
 pub const CONFIG_FILE_NAME: &str = "Movei.toml";
 
@@ -41,7 +43,7 @@ pub struct Check {
         name = "script_name",
         short = "s",
         long = "script",
-        help = "script to check"
+        about = "script to check"
     )]
     pub script_name: Option<String>,
 }
@@ -54,7 +56,7 @@ pub struct Build {
         name = "script_name",
         short = "s",
         long = "script",
-        help = "script to compile"
+        about = "script to compile"
     )]
     pub script_name: Option<String>,
 }
@@ -68,7 +70,7 @@ pub struct Run {
         name = "script_name",
         short = "s",
         long = "script",
-        help = "script to run"
+        about = "script to run"
     )]
     pub script_name: String,
 
@@ -76,7 +78,7 @@ pub struct Run {
         name = "arg",
         short = "a",
         long = "arg",
-        help = "script arguments",
+        about = "script arguments",
         parse(try_from_str=parse_as_transaction_argument),
         multiple = true
     )]

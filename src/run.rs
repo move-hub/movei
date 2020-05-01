@@ -1,4 +1,4 @@
-mod change_set;
+pub(crate) mod change_set;
 mod diff;
 pub(crate) mod exec_context;
 mod host_config;

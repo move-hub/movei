@@ -1,5 +1,4 @@
-use crate::utils;
-use crate::Build;
+use crate::{utils, Build};
 use anyhow::{bail, Result};
 use stdlib;
 
