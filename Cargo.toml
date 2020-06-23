@@ -1,38 +1,12 @@
-[package]
-name = "movei"
-version = "0.1.0"
-authors = ["move-hub <nonsense0202@pm.me>"]
-edition = "2018"
+[workspace]
+members = [
+   "bin/movei"
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-difference = "2.0"
-ansi_term = "0.12"
-clap = {git = "https://github.com/clap-rs/clap/"}
-anyhow = "1.0.28"
-move-lang = "0.0.1"
-
-move-core-types = "0.1.0"
-move-vm-runtime = "0.1.0"
-move-vm-types = "0.1.0"
-move-vm-state = "0.1.0"
-move-ir-types = "0.1.0"
-stdlib = "0.1.0"
-libra-types = "0.1.0"
-vm = "0.1.0"
-bytecode-verifier = "0.1.0"
-libra-json-rpc = "0.1.0"
-libra-crypto = "0.1.0"
-libra-wallet = "0.1.0"
-reqwest = "0.10"
-tokio = { version = "0.2", features = ["blocking"]}
-toml = "0.5"
-serde = "1.0"
 [patch.crates-io]
 move-vm-runtime = {package = "move-vm-runtime", git = "https://github.com/move-hub/libra", branch = "master"}
 move-vm-types = {package = "move-vm-types", git = "https://github.com/move-hub/libra", branch = "master"}
-move-vm-state = {package = "move-vm-state", git = "https://github.com/move-hub/libra", branch = "master"}
+# move-vm-state = {package = "move-vm-state", git = "https://github.com/move-hub/libra", branch = "master"}
 move-lang = {package = "move-lang", git = "https://github.com/move-hub/libra", branch = "master"}
 move-ir-types = {package = "move-ir-types", git = "https://github.com/move-hub/libra", branch = "master"}
 stdlib = {package="stdlib",  git = "https://github.com/move-hub/libra", branch = "master"}
