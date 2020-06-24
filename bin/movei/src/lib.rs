@@ -17,7 +17,8 @@ pub mod utils;
 pub mod context;
 
 //mod hosts;
-mod package;
+pub mod package;
+pub mod package_config;
 // pub mod resolver;
 // pub mod resource_fmt;
 

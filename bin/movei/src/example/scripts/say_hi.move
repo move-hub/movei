@@ -1,4 +1,6 @@
+script {
 use 0x1::HelloWorld;
-fun main(receiver: address) {
+fun say_hi(receiver: address) {
     HelloWorld::hi(receiver);
+}
 }

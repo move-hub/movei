@@ -1,4 +1,4 @@
-address 0x1:
+address 0x1 {
 module HelloWorld {
   resource struct T {
     receiver: address,
@@ -8,4 +8,5 @@ module HelloWorld {
       let t = T{ receiver };
       move_to_sender(t);
   }
+}
 }

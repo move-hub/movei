@@ -1,4 +1,5 @@
-use crate::{package::Package};
+use crate::{package::Package, package_config::SupportedDialect};
+use anyhow::Result;
 use dialect::MoveDialect;
 use movei_libra_dialect::LibraDialect;
 use std::path::PathBuf;
@@ -8,16 +9,18 @@ pub struct MoveiContext {
 }
 
 impl MoveiContext {
-    pub fn new(package_root: PathBuf) -> MoveiContext {
-        let package = Package::new(package_root);
-        Self { package }
+    pub fn new(package_root: PathBuf) -> Result<MoveiContext> {
+        let package = Package::load(package_root)?;
+        Ok(Self { package })
     }
     pub fn package(&self) -> &Package {
         &self.package
     }
 
     pub fn dialect(&self) -> impl MoveDialect {
-        // self.dialect.clone()
-        LibraDialect
+        match self.package.config().profile.dialect {
+            SupportedDialect::Libra => LibraDialect,
+            _ => unreachable!(),
+        }
     }
 }
