@@ -43,7 +43,7 @@ pub fn run(args: Run) -> Result<()> {
             .to_string_lossy()
             .to_string(),
     );
-    targets.push(package.module_path().to_string_lossy().to_string());
+    targets.push(package.module_dir().to_string_lossy().to_string());
     let (sources, compile_units) = move_lang::move_compile_no_report(
         &targets,
         &deps,

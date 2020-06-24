@@ -1,0 +1,19 @@
+[package]
+name = "dialect"
+version = "0.1.0"
+authors = ["caojiafeng <funfriendcjf@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow="1"
+move-lang = "0.0.1"
+move-core-types = "0.1.0"
+move-vm-runtime = "0.1.0"
+move-vm-types = "0.1.0"
+# move-vm-state = "0.1.0"
+move-ir-types = "0.1.0"
+stdlib = "0.1.0"
+libra-types = "0.1.0"
+vm = "0.1.0"

@@ -1,19 +1,21 @@
 [workspace]
 members = [
-   "bin/movei"
+   "bin/movei",
+   "api/dialect",
+   "dialect/libra",
 ]
 
 [patch.crates-io]
-move-vm-runtime = {package = "move-vm-runtime", git = "https://github.com/move-hub/libra", branch = "master"}
-move-vm-types = {package = "move-vm-types", git = "https://github.com/move-hub/libra", branch = "master"}
-# move-vm-state = {package = "move-vm-state", git = "https://github.com/move-hub/libra", branch = "master"}
-move-lang = {package = "move-lang", git = "https://github.com/move-hub/libra", branch = "master"}
-move-ir-types = {package = "move-ir-types", git = "https://github.com/move-hub/libra", branch = "master"}
-stdlib = {package="stdlib",  git = "https://github.com/move-hub/libra", branch = "master"}
-libra-types = {package="libra-types",  git = "https://github.com/move-hub/libra", branch = "master"}
-vm = {package="vm",  git = "https://github.com/move-hub/libra", branch = "master"}
-bytecode-verifier = {package="bytecode-verifier",  git = "https://github.com/move-hub/libra", branch = "master"}
-move-core-types = {package="move-core-types",  git = "https://github.com/move-hub/libra", branch = "master"}
-libra-json-rpc = {package="libra-json-rpc",  git = "https://github.com/move-hub/libra", branch = "master"}
-libra-crypto = {package="libra-crypto",  git = "https://github.com/move-hub/libra", branch = "master"}
-libra-wallet = {package="libra-wallet",  git = "https://github.com/move-hub/libra", branch = "master"}
+move-vm-runtime = {package = "move-vm-runtime", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+move-vm-types = {package = "move-vm-types", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+# move-vm-state = {package = "move-vm-state", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+move-lang = {package = "move-lang", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+move-ir-types = {package = "move-ir-types", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+stdlib = {package="stdlib",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+libra-types = {package="libra-types",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+vm = {package="vm",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+bytecode-verifier = {package="bytecode-verifier",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+move-core-types = {package="move-core-types",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+libra-json-rpc = {package="libra-json-rpc",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+libra-crypto = {package="libra-crypto",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+libra-wallet = {package="libra-wallet",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}

@@ -1,31 +1,22 @@
-use crate::{utils, Check};
+use crate::{context::MoveiContext, Check};
 use anyhow::{bail, Result};
-use stdlib;
+use dialect::MoveDialect;
 
-pub fn run(args: Check) -> Result<()> {
+pub fn run(args: Check, context: MoveiContext) -> Result<()> {
     let Check {
         sender,
         script_name,
     } = args;
-    let work_dir = utils::get_package_root()?;
-    if work_dir.is_none() {
-        bail!("cannot find movei package dir");
-    }
-    let package_dir = work_dir.unwrap();
-    let module_dir = package_dir.join("src/modules");
-    let script_dir = package_dir.join("src/scripts");
 
-    let deps = stdlib::stdlib_files();
+    let package = context.package();
+    let deps = context.dialect().stdlib_files();
     let mut targets = vec![];
-    targets.push(module_dir.to_string_lossy().to_string());
+    targets.push(package.module_dir().to_string_lossy().to_string());
+
     if let Some(script_name) = script_name {
-        let script_path = script_dir.join(format!("{}.move", script_name));
+        let script_path = package.script_path(script_name.as_str());
         if !script_path.is_file() {
-            bail!(
-                "script {} not exist in {:?}",
-                &script_name,
-                &script_dir.as_os_str()
-            );
+            bail!("script {:?} not exist", &script_path);
         }
         targets.push(script_path.to_string_lossy().to_string());
     }

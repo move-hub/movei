@@ -1,5 +1,5 @@
 use clap::Clap;
-use movei::Command;
+use movei::{context::MoveiContext, utils, Command};
 fn main() {
     let cmd = Command::parse();
     match cmd {
@@ -7,18 +7,28 @@ fn main() {
             Err(e) => println!("{:?}", e),
             Ok(_) => {}
         },
-        Command::Build(build) => match movei::build::run(build) {
-            Err(e) => println!("{:?}", e),
-            Ok(_) => {}
-        },
-        Command::Check(check) => match movei::check::run(check) {
-            Err(e) => println!("{:?}", e),
-            Ok(_) => {}
-        },
-        Command::Exec(args) => match movei::exec::run(args) {
-            Err(e) => println!("{:?}", e),
-            Ok(_) => {}
-        },
+        Command::Build(build) => {
+            let pacakge_root = utils::get_package_root().unwrap().unwrap();
+            let context = MoveiContext::new(pacakge_root);
+            match movei::build::run(build, context) {
+                Err(e) => println!("{:?}", e),
+                Ok(_) => {}
+            }
+        }
+        Command::Check(check) => {
+            let pacakge_root = utils::get_package_root().unwrap().unwrap();
+            let context = MoveiContext::new(pacakge_root);
+            match movei::check::run(check, context) {
+                Err(e) => println!("{:?}", e),
+                Ok(_) => {}
+            }
+        }
+        // Command::Exec(args) => {
+        //     match movei::exec::run(args) {
+        //         Err(e) => println!("{:?}", e),
+        //         Ok(_) => {}
+        //     }
+        // },
         _ => {}
     }
 }

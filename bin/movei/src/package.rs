@@ -17,10 +17,22 @@ impl Package {
         path
     }
 
-    pub fn module_path(&self) -> PathBuf {
+    pub fn module_dir(&self) -> PathBuf {
         let mut path = self.dir.clone();
         path.push("src");
         path.push("modules");
+        path
+    }
+    pub fn script_dir(&self) -> PathBuf {
+        let mut path = self.dir.clone();
+        path.push("src");
+        path.push("script");
+        path
+    }
+
+    pub fn targets_dir(&self) -> PathBuf {
+        let mut path = self.dir.clone();
+        path.push("targets");
         path
     }
 }

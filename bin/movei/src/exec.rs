@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{
+    context::MoveiContext,
     resolver::LoadedModules,
     resource_fmt::ResourceFormatter,
     run::{change_set::*, state::FakeDataStore},
@@ -8,13 +9,10 @@ use crate::{
 use anyhow::{bail, Result};
 use bytecode_verifier::VerifiedModule;
 use clap::Clap;
-use libra_types::{
-    account_address::AccountAddress,
-    transaction::{parse_as_transaction_argument, TransactionArgument},
-};
+use libra_types::{account_address::AccountAddress, transaction::TransactionArgument};
+use move_core_types::parser::parse_transaction_argument;
 use move_lang::{command_line::parse_address, compiled_unit::CompiledUnit, shared::Address};
-use move_vm_types::values::Value;
-use vm::{gas_schedule::zero_cost_schedule, transaction_metadata::TransactionMetadata};
+use move_vm_types::{gas_schedule::zero_cost_schedule, values::Value};
 
 #[derive(Clap, Debug)]
 pub struct ExecArgs {
@@ -43,23 +41,20 @@ pub struct ExecArgs {
         long = "arg",
         about = "script arguments",
         multiple = true,
-        parse(try_from_str=parse_as_transaction_argument)
+        parse(try_from_str=parse_transaction_argument)
     )]
     pub args: Vec<TransactionArgument>,
 }
 
-pub fn run(args: ExecArgs) -> Result<()> {
+pub fn run(args: ExecArgs, context: MoveiContext) -> Result<()> {
     let ExecArgs {
         sender,
         no_std,
         script_name,
         args,
     } = args;
-    let package = crate::package::get_current_package()?;
-    if package.is_none() {
-        bail!("unable to get package dir");
-    }
-    let package = package.unwrap();
+    let package = context.package();
+    let dialect = context.dialect();
     let mut targets = vec![];
     let deps = vec![];
     targets.push(
@@ -68,9 +63,9 @@ pub fn run(args: ExecArgs) -> Result<()> {
             .to_string_lossy()
             .to_string(),
     );
-    targets.push(package.module_path().to_string_lossy().to_string());
+    targets.push(package.module_dir().to_string_lossy().to_string());
     if !no_std {
-        targets.extend(stdlib::stdlib_files());
+        targets.extend(dialect.stdlib_files());
     }
     let (sources, compile_units) =
         move_lang::move_compile_no_report(&targets, &deps, Some(sender))?;
@@ -170,7 +165,9 @@ pub fn run(args: ExecArgs) -> Result<()> {
 fn convert_txn_args(args: &[TransactionArgument]) -> Vec<Value> {
     args.iter()
         .map(|arg| match arg {
+            TransactionArgument::U8(i) => Value::u8(*i),
             TransactionArgument::U64(i) => Value::u64(*i),
+            TransactionArgument::U128(i) => Value::u128(*i),
             TransactionArgument::Address(a) => Value::address(*a),
             TransactionArgument::Bool(b) => Value::bool(*b),
             TransactionArgument::U8Vector(v) => Value::vector_u8(v.clone()),

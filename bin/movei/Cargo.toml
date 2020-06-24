@@ -29,3 +29,6 @@ reqwest = "0.10"
 tokio = { version = "0.2", features = ["blocking"]}
 toml = "0.5"
 serde = "1.0"
+
+dialect = {path = "../../api/dialect"}
+movei-libra-dialect = {path = "../../dialect/libra"}

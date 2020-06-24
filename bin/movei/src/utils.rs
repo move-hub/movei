@@ -15,5 +15,5 @@ pub fn get_package_root() -> Result<Option<PathBuf>> {
         }
     }
 
-    return Ok(None);
+    Ok(None)
 }
