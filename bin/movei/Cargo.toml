@@ -11,10 +11,14 @@ difference = "2.0"
 ansi_term = "0.12"
 clap = {git = "https://github.com/clap-rs/clap/"}
 anyhow = "1.0.28"
-move-lang = "0.0.1"
+reqwest = "0.10"
+tokio = { version = "0.2", features = ["blocking"]}
+toml = "0.5"
+serde = "1.0"
 
+move-lang = "0.0.1"
 move-core-types = "0.1.0"
-move-vm-runtime = "0.1.0"
+move-vm-runtime = {version = "0.1.0", features = ["debug_module"]}
 move-vm-types = "0.1.0"
 # move-vm-state = "0.1.0"
 move-ir-types = "0.1.0"
@@ -25,10 +29,8 @@ bytecode-verifier = "0.1.0"
 libra-json-rpc = "0.1.0"
 libra-crypto = "0.1.0"
 libra-wallet = "0.1.0"
-reqwest = "0.10"
-tokio = { version = "0.2", features = ["blocking"]}
-toml = "0.5"
-serde = "1.0"
+resource-viewer = "0.1.0"
+libra-state-view = "0.1.0"
 
 dialect = {path = "../../api/dialect"}
 movei-libra-dialect = {path = "../../dialect/libra"}

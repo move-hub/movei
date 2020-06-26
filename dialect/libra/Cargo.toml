@@ -8,3 +8,9 @@ edition = "2018"
 
 [dependencies]
 dialect = {path = "../../api/dialect"}
+stdlib = "0.1.0"
+compiled-stdlib = "0.1.0"
+move-core-types = "0.1.0"
+move-vm-types = "0.1.0"
+libra-types  = "0.1.0"
+vm-genesis = "0.1.0"

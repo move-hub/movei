@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use libra_crypto::{ed25519::Ed25519PrivateKey, PrivateKey};
-use libra_types::account_address::AccountAddress;
+use libra_types::account_address;
+use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 #[derive(Debug, Deserialize, Serialize)]
@@ -27,10 +28,11 @@ impl Default for LibraHostConfig {
         let mut buf = [0u8; Ed25519PrivateKey::LENGTH];
         buf[Ed25519PrivateKey::LENGTH - 1] = 1;
         let private_key = Ed25519PrivateKey::try_from(&buf[..]).unwrap();
+
         Self {
             host: "localhost".to_string(),
             port: 9000,
-            address: AccountAddress::from_public_key(&private_key.public_key()),
+            address: account_address::from_public_key(&private_key.public_key()),
             private_key,
         }
     }

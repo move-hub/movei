@@ -6,16 +6,21 @@ members = [
 ]
 
 [patch.crates-io]
-move-vm-runtime = {package = "move-vm-runtime", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-move-vm-types = {package = "move-vm-types", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-# move-vm-state = {package = "move-vm-state", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-move-lang = {package = "move-lang", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-move-ir-types = {package = "move-ir-types", git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-stdlib = {package="stdlib",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-libra-types = {package="libra-types",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-vm = {package="vm",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-bytecode-verifier = {package="bytecode-verifier",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-move-core-types = {package="move-core-types",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-libra-json-rpc = {package="libra-json-rpc",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-libra-crypto = {package="libra-crypto",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
-libra-wallet = {package="libra-wallet",  git = "https://github.com/move-hub/libra", rev = "7967032b6feafa910421b57eb3a3c0da333031de"}
+move-vm-runtime = {package = "move-vm-runtime", git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+move-vm-types = {package = "move-vm-types", git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+# move-vm-state = {package = "move-vm-state", git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+move-lang = {package = "move-lang", git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+move-ir-types = {package = "move-ir-types", git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+stdlib = {package="stdlib",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+compiled-stdlib = {package="compiled-stdlib",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+libra-types = {package="libra-types",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+vm = {package="vm",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+bytecode-verifier = {package="bytecode-verifier",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+move-core-types = {package="move-core-types",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+libra-json-rpc = {package="libra-json-rpc",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+libra-crypto = {package="libra-crypto",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+libra-wallet = {package="libra-wallet",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+resource-viewer = {package="resource-viewer",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+libra-state-view = {package="libra-state-view",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+vm-genesis = {package="vm-genesis",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}
+move-vm-natives = {package="move-vm-natives",  git = "https://github.com/move-hub/libra", rev = "b6bde3e0f484c8a33ad5f14c5f63207930620d90"}

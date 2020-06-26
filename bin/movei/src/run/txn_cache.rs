@@ -1,11 +1,13 @@
 use crate::run::change_set::{Change, ChangeSet, ChangeSetMut};
 use libra_types::{
     access_path::AccessPath,
-    language_storage::ModuleId,
+    contract_event::ContractEvent,
     vm_error::{StatusCode, VMStatus},
 };
-use move_vm_state::data_cache::RemoteCache;
+use move_core_types::language_storage::ModuleId;
+use move_vm_runtime::data_cache::RemoteCache;
 use move_vm_types::{
+    data_store::DataStore,
     loaded_data::types::FatStructType,
     values::{GlobalValue, Struct, Value},
 };
@@ -26,6 +28,7 @@ pub struct TransactionDataCache<'txn> {
     // keep track of loaded data.
     origin_data_map: BTreeMap<AccessPath, Struct>,
     module_map: BTreeMap<ModuleId, Vec<u8>>,
+    event_data: Vec<ContractEvent>,
     data_cache: &'txn dyn RemoteCache,
 }
 
@@ -37,44 +40,8 @@ impl<'txn> TransactionDataCache<'txn> {
             data_types: BTreeMap::new(),
             origin_data_map: BTreeMap::new(),
             module_map: BTreeMap::new(),
+            event_data: vec![],
         }
-    }
-
-    pub fn exists_module(&self, m: &ModuleId) -> bool {
-        self.module_map.contains_key(m) || {
-            let ap = AccessPath::from(m);
-            matches!(self.data_cache.get(&ap), Ok(Some(_)))
-        }
-    }
-
-    pub fn load_module(&self, module: &ModuleId) -> VMResult<Vec<u8>> {
-        match self.module_map.get(module) {
-            Some(bytes) => Ok(bytes.clone()),
-            None => {
-                let ap = AccessPath::from(module);
-                self.data_cache.get(&ap).and_then(|data| {
-                    data.ok_or_else(|| {
-                        VMStatus::new(StatusCode::LINKER_ERROR)
-                            .with_message(format!("Cannot find {:?} in data cache", module))
-                    })
-                })
-            }
-        }
-    }
-
-    pub fn publish_module(&mut self, m: ModuleId, bytes: Vec<u8>) -> VMResult<()> {
-        self.module_map.insert(m, bytes);
-        Ok(())
-    }
-
-    pub fn publish_resource(
-        &mut self,
-        ap: &AccessPath,
-        g: (FatStructType, GlobalValue),
-    ) -> VMResult<()> {
-        self.data_map.insert(ap.clone(), Some(g.1));
-        self.data_types.insert(ap.clone(), g.0);
-        Ok(())
     }
 
     // Retrieve data from the local cache or loads it from the remote cache into the local cache.
@@ -173,10 +140,77 @@ impl<'txn> TransactionDataCache<'txn> {
             .map_err(|_| vm_error(Location::new(), StatusCode::DATA_FORMAT_ERROR))
     }
 
+    pub fn event_data(&self) -> &[ContractEvent] {
+        self.event_data.as_slice()
+    }
+
     /// Flush out the cache and restart from a clean state
     pub fn clear(&mut self) {
         self.data_map.clear();
         self.data_types.clear();
         self.module_map.clear();
+    }
+}
+
+impl<'a> DataStore for TransactionDataCache<'a> {
+    fn publish_resource(
+        &mut self,
+        ap: &AccessPath,
+        g: (FatStructType, GlobalValue),
+    ) -> VMResult<()> {
+        self.data_map.insert(ap.clone(), Some(g.1));
+        self.data_types.insert(ap.clone(), g.0);
+        Ok(())
+    }
+
+    fn borrow_resource(
+        &mut self,
+        ap: &AccessPath,
+        ty: &FatStructType,
+    ) -> VMResult<Option<&GlobalValue>> {
+        let map_entry = self.load_data(ap, ty)?.as_ref();
+        Ok(map_entry)
+    }
+
+    fn move_resource_from(
+        &mut self,
+        ap: &AccessPath,
+        ty: &FatStructType,
+    ) -> VMResult<Option<GlobalValue>> {
+        let map_entry = self.load_data(ap, ty)?;
+        // .take() means that the entry is removed from the data map -- this marks the
+        // access path for deletion.
+        Ok(map_entry.take())
+    }
+
+    fn load_module(&self, module: &ModuleId) -> VMResult<Vec<u8>> {
+        match self.module_map.get(module) {
+            Some(bytes) => Ok(bytes.clone()),
+            None => {
+                let ap = AccessPath::from(module);
+                self.data_cache.get(&ap).and_then(|data| {
+                    data.ok_or_else(|| {
+                        VMStatus::new(StatusCode::LINKER_ERROR)
+                            .with_message(format!("Cannot find {:?} in data cache", module))
+                    })
+                })
+            }
+        }
+    }
+
+    fn publish_module(&mut self, m: ModuleId, bytes: Vec<u8>) -> VMResult<()> {
+        self.module_map.insert(m, bytes);
+        Ok(())
+    }
+
+    fn exists_module(&self, m: &ModuleId) -> bool {
+        self.module_map.contains_key(m) || {
+            let ap = AccessPath::from(m);
+            matches!(self.data_cache.get(&ap), Ok(Some(_)))
+        }
+    }
+
+    fn emit_event(&mut self, event: ContractEvent) {
+        self.event_data.push(event)
     }
 }

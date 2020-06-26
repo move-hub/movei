@@ -1,5 +1,6 @@
 use anyhow::Result;
-use libra_types::{account_address::AccountAddress, language_storage::ModuleId};
+use libra_types::account_address::AccountAddress;
+use move_core_types::language_storage::ModuleId;
 use move_vm_types::{loaded_data::types::FatStructType, values::Struct};
 use std::collections::BTreeMap;
 

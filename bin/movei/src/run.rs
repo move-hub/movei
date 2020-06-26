@@ -1,42 +1,66 @@
+#![allow(dead_code)]
+
 pub(crate) mod change_set;
 mod diff;
-pub(crate) mod exec_context;
 mod host_config;
 pub mod state;
 pub(crate) mod txn_cache;
-use crate::{
-    hosts::{Config, LibraHost},
-    run::exec_context::LocalExecutionContext,
-    Run,
-};
-use anyhow::{bail, Result};
-use bytecode_verifier::VerifiedModule;
-use libra_types::transaction::TransactionArgument;
-use move_core_types::gas_schedule::GasAlgebra;
-use move_lang::{compiled_unit::CompiledUnit, shared::Address};
-use move_vm_types::{chain_state::ChainState, values::Value};
-use std::fs;
-use stdlib;
-use toml;
 
-pub fn run(args: Run) -> Result<()> {
-    let Run {
-        config,
+use crate::context::MoveiContext;
+use anyhow::{Error, Result};
+use bytecode_verifier::VerifiedModule;
+use change_set::*;
+use clap::Clap;
+use dialect::MoveDialect;
+use libra_types::{account_address::AccountAddress, transaction::TransactionArgument};
+use move_core_types::{
+    gas_schedule::{GasAlgebra, GasUnits},
+    parser::parse_transaction_argument,
+};
+use move_lang::{compiled_unit::CompiledUnit, shared::Address};
+use move_vm_runtime::move_vm::MoveVM;
+use move_vm_types::{gas_schedule::CostStrategy, values::Value};
+use resource_viewer::MoveValueAnnotator;
+use state::FakeDataStore;
+use std::{collections::HashMap, convert::TryFrom};
+use vm::access::ModuleAccess;
+
+#[derive(Clap, Debug)]
+pub struct RunArgs {
+    #[clap(
+    name = "SENDER",
+    long = "sender",
+    about = "address executing the script",
+    parse(try_from_str=AccountAddress::from_hex_literal)
+    )]
+    pub sender: AccountAddress,
+
+    #[clap(long = "no-std", about = "exec without std")]
+    pub no_std: bool,
+
+    #[clap(name = "script_name", about = "script to run")]
+    pub script_name: String,
+
+    #[clap(
+    name = "arg",
+    about = "script arguments",
+    multiple = true,
+    parse(try_from_str=parse_transaction_argument)
+    )]
+    pub args: Vec<TransactionArgument>,
+}
+
+pub fn run(args: RunArgs, context: MoveiContext) -> Result<()> {
+    let RunArgs {
+        sender,
+        no_std,
         script_name,
         args,
-        ..
     } = args;
-
-    let config: Config = toml::from_str(fs::read_to_string(config)?.as_str())?;
-
-    let package = crate::package::get_current_package()?;
-    if package.is_none() {
-        bail!("unable to get package dir");
-    }
-    let package = package.unwrap();
-
+    let package = context.package();
+    let dialect = context.dialect();
     let mut targets = vec![];
-    let deps = stdlib::stdlib_files();
+    let mut deps = vec![];
     targets.push(
         package
             .script_path(&script_name)
@@ -44,10 +68,13 @@ pub fn run(args: Run) -> Result<()> {
             .to_string(),
     );
     targets.push(package.module_dir().to_string_lossy().to_string());
+    if !no_std {
+        deps.extend(dialect.stdlib_files());
+    }
     let (sources, compile_units) = move_lang::move_compile_no_report(
         &targets,
         &deps,
-        Some(Address::new(config.address.into())),
+        Some(Address::try_from(sender.as_ref()).unwrap()),
     )?;
 
     let compile_units = match compile_units {
@@ -60,10 +87,8 @@ pub fn run(args: Run) -> Result<()> {
     for unit in compile_units {
         let _is_module = match unit {
             CompiledUnit::Module { module, .. } => match VerifiedModule::new(module) {
-                Err((m, errs)) => {
-                    for e in &errs {
-                        println!("{:?} at {:?}", e, m.self_id());
-                    }
+                Err((m, err)) => {
+                    println!("{:?} at {:?}", err, m.self_id());
                 }
                 Ok(verified_module) => {
                     verified_modules.push(verified_module);
@@ -74,40 +99,84 @@ pub fn run(args: Run) -> Result<()> {
             }
         };
     }
+    let dialect = context.dialect();
+
+    let vm = MoveVM::new();
+    let mut data_store = FakeDataStore::new(HashMap::new());
+    data_store.add_write_set(dialect.genesis());
+    // cache modules
+    for verified_module in verified_modules.iter() {
+        data_store.add_module(&verified_module.self_id(), verified_module.as_inner());
+    }
+    let cost_table = dialect.cost_table();
+    let mut chain_state = super::run::txn_cache::TransactionDataCache::new(&data_store);
+    let mut cost_strategy = CostStrategy::transaction(&cost_table, GasUnits::new(u64::MAX));
     let main_script = main.unwrap();
     let type_args = vec![];
-
-    let run_host = LibraHost::new(config)?;
-
-    let txn_meta = run_host.txn_meta(&main_script, vec![].as_slice(), args.as_slice());
-    let gas_schedule = run_host.gas_schedule();
-    let state_view = run_host.remote_cache();
-    let mut chain_state = LocalExecutionContext::new(txn_meta.max_gas_amount(), state_view);
-
-    let vm = move_vm_runtime::MoveVM::new();
-    for m in verified_modules {
-        // TODO: handle error
-        vm.cache_module(m.clone(), &mut chain_state).unwrap();
-    }
-
+    let args = convert_txn_args(&args);
     let exec_result = vm.execute_script(
         main_script,
-        &gas_schedule,
-        &mut chain_state,
-        &txn_meta,
         type_args,
-        convert_txn_args(&args),
+        args,
+        sender,
+        &mut chain_state,
+        &mut cost_strategy,
     );
-
     if let Err(e) = exec_result {
         println!("{:?} when exec {}", &e, &script_name);
+        return Err(Error::from(e));
+    }
+    let output = chain_state.make_change_set()?;
+    let gas_used = u64::MAX - cost_strategy.remaining_gas().get();
+    // let events = chain_state.event_data().to_vec();
+
+    println!("ChangeSet:");
+    let annotator = MoveValueAnnotator::new(&data_store);
+    for (addr, cs) in output.into_changes() {
+        for c in cs {
+            let (old, new) = match c {
+                Change::DeleteResource(t, d) => {
+                    let old = {
+                        let data = d.simple_serialize(&t).unwrap();
+                        let annotated_s = annotator.view_struct(t, data.as_slice())?;
+                        format!("{}", annotated_s)
+                    };
+                    (old, String::new())
+                }
+                Change::AddResource(t, d) => {
+                    let new = {
+                        let data = d.simple_serialize(&t).unwrap();
+                        let annotated_s = annotator.view_struct(t, data.as_slice())?;
+                        format!("{}", annotated_s)
+                    };
+                    (String::new(), new)
+                }
+                Change::ModifyResource(t, old_data, new_data) => {
+                    let old = {
+                        let data = old_data.simple_serialize(&t).unwrap();
+                        let annotated_s = annotator.view_struct(t.clone(), data.as_slice())?;
+                        format!("{}", annotated_s)
+                    };
+                    let new = {
+                        let data = new_data.simple_serialize(&t).unwrap();
+                        let annotated_s = annotator.view_struct(t, data.as_slice())?;
+                        format!("{}", annotated_s)
+                    };
+                    (old, new)
+                }
+                Change::AddModule(m, _) => {
+                    let new = format!("{:#x}::{}", m.address(), m.name());
+                    (String::new(), new)
+                }
+            };
+
+            println!("address {:#x}:", addr);
+            let cs = difference::Changeset::new(&old, &new, "");
+            println!("{}", &cs);
+        }
     }
 
-    let output = chain_state.make_change_set().unwrap();
-    let gas_left = chain_state.remaining_gas();
-    let gas_used = txn_meta.max_gas_amount().sub(gas_left);
-    println!("gas used: {:?}", gas_used);
-    println!("{:#?}", &output);
+    println!("GasUsed: {}", gas_used);
     Ok(())
 }
 
@@ -115,7 +184,9 @@ pub fn run(args: Run) -> Result<()> {
 fn convert_txn_args(args: &[TransactionArgument]) -> Vec<Value> {
     args.iter()
         .map(|arg| match arg {
+            TransactionArgument::U8(i) => Value::u8(*i),
             TransactionArgument::U64(i) => Value::u64(*i),
+            TransactionArgument::U128(i) => Value::u128(*i),
             TransactionArgument::Address(a) => Value::address(*a),
             TransactionArgument::Bool(b) => Value::bool(*b),
             TransactionArgument::U8Vector(v) => Value::vector_u8(v.clone()),
