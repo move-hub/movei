@@ -10,6 +10,7 @@ pub mod check;
 pub mod context;
 pub mod new;
 pub mod run;
+pub mod test;
 pub mod utils;
 //mod hosts;
 pub mod package;
@@ -26,6 +27,9 @@ pub enum Command {
     Build(Build),
     #[clap(name = "run", about = "run script")]
     Run(run::RunArgs),
+    #[clap(name = "test")]
+    /// run tests
+    Test(TestArgs),
 }
 
 #[derive(Clap, Debug)]
@@ -52,4 +56,11 @@ pub struct Build {
         about = "script to compile"
     )]
     pub script_name: Option<String>,
+}
+
+#[derive(Clap, Debug)]
+pub struct TestArgs {
+    #[clap(name = "script_name")]
+    /// test to run
+    pub test_name: Option<String>,
 }

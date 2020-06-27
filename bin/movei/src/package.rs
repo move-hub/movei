@@ -63,6 +63,12 @@ impl Package {
         path
     }
 
+    pub fn tests_dir(&self) -> PathBuf {
+        let mut path = self.dir.clone();
+        path.push("tests");
+        path
+    }
+
     pub fn config(&self) -> &MoveiConfig {
         &self.config
     }
