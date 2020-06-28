@@ -4,6 +4,7 @@ use crate::new::NewPackageArgs;
 use clap::Clap;
 use move_core_types::account_address::AccountAddress;
 use move_lang::{command_line::parse_address, shared::Address};
+use std::num::NonZeroUsize;
 
 pub mod build;
 pub mod check;
@@ -38,7 +39,7 @@ pub struct Check {
     pub sender: Option<Address>,
     #[clap(
         name = "script_name",
-        short = "s",
+        short = 's',
         long = "script",
         about = "script to check"
     )]
@@ -51,7 +52,7 @@ pub struct Build {
     pub sender: Option<AccountAddress>,
     #[clap(
         name = "script_name",
-        short = "s",
+        short = 's',
         long = "script",
         about = "script to compile"
     )]
@@ -60,7 +61,23 @@ pub struct Build {
 
 #[derive(Clap, Debug)]
 pub struct TestArgs {
-    #[clap(name = "script_name")]
-    /// test to run
-    pub test_name: Option<String>,
+    /// The FILTER string is tested against the name of all tests, and only those tests whose names
+    /// contain the filter are run.
+    pub filter: Option<String>,
+
+    #[clap(long = "exact")]
+    /// Exactly match filters rather than by substring
+    pub filter_exact: bool,
+
+    #[clap(long, default_value = "32", env = "RUST_TEST_THREADS")]
+    /// Number of threads used for running tests in parallel
+    pub test_threads: NonZeroUsize,
+
+    #[clap(short, long)]
+    /// Output minimal information
+    pub quiet: bool,
+
+    #[clap(long)]
+    /// List all tests
+    pub list: bool,
 }

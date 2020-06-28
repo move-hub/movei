@@ -26,11 +26,11 @@ stdlib = "0.1.0"
 libra-types = "0.1.0"
 vm = "0.1.0"
 bytecode-verifier = "0.1.0"
-libra-json-rpc = "0.1.0"
 libra-crypto = "0.1.0"
-libra-wallet = "0.1.0"
 resource-viewer = "0.1.0"
 libra-state-view = "0.1.0"
 
 dialect = {path = "../../api/dialect"}
 movei-libra-dialect = {path = "../../dialect/libra"}
+datatest = {path = "../../datatest"}
+movei-test = {path = "../../movei-test"}

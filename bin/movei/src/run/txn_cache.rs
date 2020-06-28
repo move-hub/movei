@@ -1,10 +1,9 @@
 use crate::run::change_set::{Change, ChangeSet, ChangeSetMut};
-use libra_types::{
-    access_path::AccessPath,
-    contract_event::ContractEvent,
-    vm_error::{StatusCode, VMStatus},
+use libra_types::{access_path::AccessPath, contract_event::ContractEvent};
+use move_core_types::{
+    language_storage::ModuleId,
+    vm_status::{StatusCode, VMStatus},
 };
-use move_core_types::language_storage::ModuleId;
 use move_vm_runtime::data_cache::RemoteCache;
 use move_vm_types::{
     data_store::DataStore,
@@ -12,7 +11,7 @@ use move_vm_types::{
     values::{GlobalValue, Struct, Value},
 };
 use std::collections::BTreeMap;
-use vm::errors::{vm_error, Location, VMResult};
+use vm::errors::{vm_status, Location, VMResult};
 
 /// NOTICE: the code is copied from libra.
 /// some changes are made to track the resource type of accessed path.
@@ -89,7 +88,7 @@ impl<'txn> TransactionDataCache<'txn> {
     /// at the end of the transactions (all ReleaseRef are properly called)
     pub fn make_change_set(&mut self) -> VMResult<ChangeSet> {
         if self.data_map.len() + self.module_map.len() > usize::max_value() {
-            return Err(vm_error(Location::new(), StatusCode::INVALID_DATA));
+            return Err(vm_status(Location::new(), StatusCode::INVALID_DATA));
         }
 
         let data_map = std::mem::replace(&mut self.data_map, BTreeMap::new());
@@ -117,7 +116,7 @@ impl<'txn> TransactionDataCache<'txn> {
                 }
                 None => {
                     if old_data.is_none() {
-                        return Err(vm_error(Location::new(), StatusCode::INVALID_DATA));
+                        return Err(vm_status(Location::new(), StatusCode::INVALID_DATA));
                     }
                     changes.add_change(
                         key.address,
@@ -137,7 +136,7 @@ impl<'txn> TransactionDataCache<'txn> {
 
         changes
             .freeze()
-            .map_err(|_| vm_error(Location::new(), StatusCode::DATA_FORMAT_ERROR))
+            .map_err(|_| vm_status(Location::new(), StatusCode::DATA_FORMAT_ERROR))
     }
 
     pub fn event_data(&self) -> &[ContractEvent] {

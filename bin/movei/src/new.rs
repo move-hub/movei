@@ -11,7 +11,7 @@ pub const EXAMPLE_SCRIPT: &str = include_str!("example/scripts/say_hi.move");
 
 #[derive(Clap, Debug)]
 pub struct NewPackageArgs {
-    #[clap(name = "name", short = "n")]
+    #[clap(name = "name", short = 'n')]
     name: String,
     #[clap(name = "path", parse(from_os_str))]
     path: PathBuf,

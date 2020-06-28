@@ -1,14 +1,16 @@
-use anyhow::{format_err, Error, Result};
+#![feature(move_ref_pattern)]
+
+pub mod command;
+pub mod command_impl;
+
+use anyhow::{bail, format_err, Error, Result};
+use functional_tests::{checker, common::LineSp};
 use std::{fmt::Debug, fs::read_to_string, path::Path, str::FromStr};
 
-pub trait Command: FromStr<Err = Error> + Debug {
-    type ConfigEntry: CommandConfigEntry;
-    fn add_config(&mut self, config: Self::ConfigEntry) -> Result<()>;
-    fn add_textline(&mut self, line: &str) -> Result<()>;
-    fn validate(&self) -> Result<()>;
-}
+use command::*;
 
-pub trait CommandConfigEntry: FromStr<Err = Error> + Debug {}
+pub type CheckerDirective = checker::Directive;
+pub type LineSpCheckerDirective = LineSp<CheckerDirective>;
 
 pub enum Directive<C>
 where
@@ -53,12 +55,14 @@ pub fn extract_global_config<T: FromStr>(
     entries
 }
 
-pub fn functional_tests<P: Command>(path: &Path) -> datatest::Result<()> {
-    let input = read_to_string(path)?;
+pub fn parse<P: Command>(
+    lines: impl IntoIterator<Item = impl AsRef<str>>,
+) -> Result<(Vec<P>, Vec<LineSpCheckerDirective>)> {
     let mut commands = vec![];
+    let mut check_directives: Vec<LineSpCheckerDirective> = vec![];
     let mut cur_command: Option<P> = None;
-    for (_line_idx, line) in input.lines().enumerate() {
-        let line = line.trim();
+    for (line_idx, line) in lines.into_iter().enumerate() {
+        let line = line.as_ref().trim();
         // skip empty lines
         if line.is_empty() {
             continue;
@@ -76,12 +80,15 @@ pub fn functional_tests<P: Command>(path: &Path) -> datatest::Result<()> {
                     if let Some(command) = cur_command.as_mut() {
                         command.add_config(c)?;
                     } else {
-                        Err(format_err!("invalid config directive, {:?}", c))?;
+                        bail!("invalid config directive, {:?}", c);
                     }
                 }
             },
             Err(_) => {
-                if let Some(c) = cur_command.as_mut() {
+                if let Ok(directives) = checker::Directive::parse_line(line) {
+                    check_directives
+                        .extend(directives.into_iter().map(|sp| sp.into_line_sp(line_idx)));
+                } else if let Some(c) = cur_command.as_mut() {
                     c.add_textline(line)?;
                 } else {
                     // skip lines with unknown contexts.
@@ -90,5 +97,15 @@ pub fn functional_tests<P: Command>(path: &Path) -> datatest::Result<()> {
             }
         }
     }
-    todo!()
+    if let Some(command) = cur_command {
+        command.validate()?;
+        commands.push(command);
+    }
+    Ok((commands, check_directives))
+}
+
+pub fn functional_tests<P: Command>(path: &Path) -> datatest::Result<()> {
+    let input = read_to_string(path)?;
+    let (commands, check_directives): (Vec<P>, _) = parse(input.lines())?;
+    Ok(())
 }
