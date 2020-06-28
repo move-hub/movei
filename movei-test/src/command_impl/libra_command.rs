@@ -1,4 +1,4 @@
-use crate::command::{Command, CommandConfigEntry};
+use crate::command::{Command, CommandConfigEntry, CommandEvaluator, EvaluationLog};
 use anyhow::{bail, format_err, Error, Result};
 use functional_tests::{
     config::{block_metadata, global, transaction},
@@ -151,5 +151,15 @@ impl Command for LibraTestCommand {
             _ => {}
         }
         Ok(())
+    }
+}
+
+pub struct LibraCommandEvaluator {}
+
+impl CommandEvaluator for LibraCommandEvaluator {
+    type Cmd = LibraTestCommand;
+
+    fn eval(&self, command: Self::Cmd) -> Result<EvaluationLog, Error> {
+        Ok(EvaluationLog { outputs: vec![] })
     }
 }

@@ -1,7 +1,20 @@
 use crate::{context::MoveiContext, TestArgs};
 use anyhow::{bail, Result};
 use datatest::{Requirements, TestOpts};
-use movei_test::{command_impl::libra_command::LibraTestCommand, functional_tests};
+use movei_test::{
+    command_impl::libra_command::{LibraCommandEvaluator, LibraTestCommand},
+    functional_tests,
+};
+use std::path::Path;
+
+pub fn test(path: &Path) -> datatest::Result<()> {
+    let evaluator = LibraCommandEvaluator {};
+    let succ = functional_tests::<_, LibraCommandEvaluator>(evaluator, path)?;
+    if !succ {
+        panic!("test failed");
+    }
+    Ok(())
+}
 
 pub fn run(args: TestArgs, _context: MoveiContext) -> Result<()> {
     let mut opt = TestOpts::default();
@@ -12,7 +25,7 @@ pub fn run(args: TestArgs, _context: MoveiContext) -> Result<()> {
     opt.quiet = args.quiet;
 
     let requires = Requirements::new(
-        functional_tests::<LibraTestCommand>,
+        test,
         "functional_tests".to_string(),
         _context.package().tests_dir().to_string_lossy().to_string(),
         r".*\.move$".to_string(),
