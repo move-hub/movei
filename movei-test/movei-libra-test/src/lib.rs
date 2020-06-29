@@ -1,7 +1,9 @@
-use crate::{
-    command::{Command, CommandConfigEntry, CommandEvaluator, EvaluationLog},
-    move_test_compiler::MoveSourceCompiler,
-};
+#![feature(move_ref_pattern)]
+#![feature(drain_filter)]
+mod move_test_compiler;
+
+use move_test_compiler::MoveSourceCompiler;
+
 use anyhow::{bail, format_err, Error, Result};
 use dialect::MoveDialect;
 use functional_tests::{
@@ -10,14 +12,14 @@ use functional_tests::{
     preprocessor::{substitute_addresses_and_auth_keys, RawTransactionInput},
 };
 use itertools::Itertools;
-
 use movei_libra_dialect::LibraDialect;
-
+use movei_test::{Command, CommandConfigEntry, CommandEvaluator, EvaluationLog};
 use std::{
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
     str::FromStr,
 };
+
 #[derive(Debug)]
 pub enum LibraTestCommand {
     GlobalConfig(global::Entry),

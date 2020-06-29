@@ -5,6 +5,7 @@ members = [
    "dialect/libra",
    "datatest",
    "movei-test",
+   "movei-test/movei-libra-test",
    "movei-executor",
 ]
 

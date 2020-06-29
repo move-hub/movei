@@ -34,4 +34,5 @@ dialect = {path = "../../api/dialect"}
 movei-libra-dialect = {path = "../../dialect/libra"}
 datatest = {path = "../../datatest"}
 movei-test = {path = "../../movei-test"}
+movei-libra-test = {path = "../../movei-test/movei-libra-test"}
 movei-executor = {path = "../../movei-executor"}

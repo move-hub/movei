@@ -1,7 +1,8 @@
 use crate::{context::MoveiContext, TestArgs};
 use anyhow::{bail, Result};
 use datatest::{Requirements, TestOpts};
-use movei_test::{command_impl::libra_command::LibraCommandEvaluator, functional_tests};
+use movei_libra_test::LibraCommandEvaluator;
+use movei_test::functional_tests;
 use std::path::Path;
 
 pub fn test(path: &Path) -> datatest::Result<()> {

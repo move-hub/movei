@@ -2005,6 +2005,7 @@ dependencies = [
  "move-vm-types",
  "movei-executor",
  "movei-libra-dialect",
+ "movei-libra-test",
  "movei-test",
  "reqwest",
  "resource-viewer",
@@ -2042,7 +2043,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "movei-test"
+name = "movei-libra-test"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2056,8 +2057,17 @@ dependencies = [
  "move-lang",
  "movei-executor",
  "movei-libra-dialect",
- "rand 0.7.3",
+ "movei-test",
  "tempfile",
+]
+
+[[package]]
+name = "movei-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "datatest",
+ "functional-tests",
 ]
 
 [[package]]

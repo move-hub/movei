@@ -1,14 +1,26 @@
-#![feature(move_ref_pattern)]
-#![feature(drain_filter)]
-
-pub mod command;
-pub mod command_impl;
 pub mod command_parser;
-pub mod move_test_compiler;
+pub use functional_tests::evaluator::{
+    EvaluationLog, EvaluationOutput, OutputType, Stage, Status, TransactionId,
+};
 
-use command::*;
+use anyhow::{Error, Result};
 use functional_tests::{checker::match_output, testsuite::println_match_result};
-use std::{fs::read_to_string, path::Path};
+use std::{fmt::Debug, fs::read_to_string, path::Path, str::FromStr};
+
+pub trait Command: FromStr<Err = Error> + Debug + Default {
+    type ConfigEntry: CommandConfigEntry;
+    fn has_config(&self) -> bool;
+    fn add_config(&mut self, config: Self::ConfigEntry) -> Result<()>;
+    fn add_textline(&mut self, line: &str) -> Result<()>;
+    fn validate(&self) -> Result<()>;
+}
+
+pub trait CommandConfigEntry: FromStr<Err = Error> + Debug {}
+
+pub trait CommandEvaluator {
+    type Cmd: Command;
+    fn eval(&self, commands: Vec<Self::Cmd>) -> Result<EvaluationLog>;
+}
 
 pub fn functional_tests<P: Command, Evaluator: CommandEvaluator<Cmd = P>>(
     evaluator: Evaluator,

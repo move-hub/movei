@@ -1,8 +1,7 @@
+use crate::Command;
 use anyhow::{format_err, Error, Result};
 use functional_tests::{checker, common::LineSp};
 use std::str::FromStr;
-
-use crate::command::Command;
 
 pub type CheckerDirective = checker::Directive;
 pub type LineSpCheckerDirective = LineSp<CheckerDirective>;
