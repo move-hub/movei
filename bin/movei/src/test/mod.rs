@@ -1,10 +1,7 @@
 use crate::{context::MoveiContext, TestArgs};
 use anyhow::{bail, Result};
 use datatest::{Requirements, TestOpts};
-use movei_test::{
-    command_impl::libra_command::{LibraCommandEvaluator},
-    functional_tests,
-};
+use movei_test::{command_impl::libra_command::LibraCommandEvaluator, functional_tests};
 use std::path::Path;
 
 pub fn test(path: &Path) -> datatest::Result<()> {
@@ -30,7 +27,7 @@ pub fn run(args: TestArgs, _context: MoveiContext) -> Result<()> {
     }
     let requires = Requirements::new(
         test,
-        "functional_tests".to_string(),
+        "tests".to_string(),
         _context.package().tests_dir().to_string_lossy().to_string(),
         r".*\.move$".to_string(),
     );

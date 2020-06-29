@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error, Result};
+use anyhow::{format_err, Error, Result};
 use functional_tests::{checker, common::LineSp};
 use std::str::FromStr;
 
@@ -50,17 +50,24 @@ pub fn parse<P: Command>(
         match line.parse::<Directive<P>>() {
             Ok(directive) => match directive {
                 Directive::CommandDirective(c) => {
-                    if let Some(c) = cur_command.take() {
-                        c.validate()?;
+                    if let Some(cur) = cur_command.take() {
+                        cur.validate()?;
+                        commands.push(cur);
+                    }
+                    debug_assert!(cur_command.is_none());
+                    if c.has_config() {
+                        cur_command = Some(c);
+                    } else {
                         commands.push(c);
                     }
-                    cur_command = Some(c);
                 }
                 Directive::CommandConfigDirective(c) => {
                     if let Some(command) = cur_command.as_mut() {
                         command.add_config(c)?;
                     } else {
-                        bail!("invalid config directive, {:?}", c);
+                        let mut default_command = P::default();
+                        default_command.add_config(c)?;
+                        cur_command = Some(default_command);
                     }
                 }
             },
@@ -71,6 +78,10 @@ pub fn parse<P: Command>(
                 } else if let Some(c) = cur_command.as_mut() {
                     c.add_textline(line)?;
                 } else {
+                    // skip comment line without any context.
+                    if line.starts_with("//") {
+                        continue;
+                    }
                     // init default command context
                     let mut default_command = P::default();
                     default_command.add_textline(line)?;

@@ -6,6 +6,7 @@ pub use functional_tests::evaluator::{EvaluationLog, EvaluationOutput, Status};
 
 pub trait Command: FromStr<Err = Error> + Debug + Default {
     type ConfigEntry: CommandConfigEntry;
+    fn has_config(&self) -> bool;
     fn add_config(&mut self, config: Self::ConfigEntry) -> Result<()>;
     fn add_textline(&mut self, line: &str) -> Result<()>;
     fn validate(&self) -> Result<()>;
