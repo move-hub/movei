@@ -13,6 +13,10 @@ pub fn run(options: TestOpts, reqs: &[Requirements]) -> io::Result<bool> {
         return Ok(true);
     }
 
+    if tests.is_empty() {
+        return Ok(true);
+    }
+
     run_tests(options, tests)
     // {
     //     Ok(true) => {}

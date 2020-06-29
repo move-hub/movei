@@ -23,7 +23,11 @@ pub fn run(args: TestArgs, _context: MoveiContext) -> Result<()> {
     opt.filter_exact = args.filter_exact;
     opt.list = args.list;
     opt.quiet = args.quiet;
-
+    let test_dir = _context.package().tests_dir();
+    if !test_dir.exists() {
+        println!("test dir {} don't exists", test_dir.display());
+        return Ok(());
+    }
     let requires = Requirements::new(
         test,
         "functional_tests".to_string(),
