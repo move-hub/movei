@@ -19,6 +19,5 @@ move-lang = "0.0.1"
 
 movei-test = {path = "../../movei-test"}
 datatest = {path = "../../datatest"}
-movei-executor = {path = "../../movei-executor"}
 dialect = {path = "../../api/dialect"}
 movei-libra-dialect = {path = "../../dialect/libra"}

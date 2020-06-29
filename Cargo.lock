@@ -2038,6 +2038,7 @@ dependencies = [
  "libra-types",
  "move-core-types",
  "move-vm-types",
+ "once_cell",
  "stdlib",
  "vm-genesis",
 ]
@@ -2055,7 +2056,6 @@ dependencies = [
  "libra-crypto",
  "libra-types",
  "move-lang",
- "movei-executor",
  "movei-libra-dialect",
  "movei-test",
  "tempfile",

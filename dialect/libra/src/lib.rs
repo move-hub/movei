@@ -7,19 +7,28 @@ use libra_types::{
     write_set::*,
 };
 use move_core_types::gas_schedule::CostTable;
+use once_cell::sync::Lazy;
 use stdlib::stdlib_files;
 use vm_genesis::generate_genesis_change_set_for_testing;
+
+/// Dummy genesis ChangeSet for testing
+pub static GENESIS_CHANGE_SET: Lazy<ChangeSet> =
+    Lazy::new(|| generate_genesis_change_set_for_testing(StdLibOptions::Compiled));
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct LibraDialect {
     genesis: ChangeSet,
 }
+impl Default for LibraDialect {
+    fn default() -> Self {
+        Self {
+            genesis: GENESIS_CHANGE_SET.clone(),
+        }
+    }
+}
 impl LibraDialect {
     pub fn new() -> Self {
-        let genesis_change_set = generate_genesis_change_set_for_testing(StdLibOptions::Compiled);
-        Self {
-            genesis: genesis_change_set,
-        }
+        Self::default()
     }
 }
 

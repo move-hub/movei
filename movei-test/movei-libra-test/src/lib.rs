@@ -182,6 +182,7 @@ impl Command for LibraTestCommand {
     }
 }
 
+#[derive(Default)]
 pub struct LibraCommandEvaluator {
     // store: FakeDataStore,
     dialect: LibraDialect,
@@ -210,9 +211,7 @@ impl LibraCommandEvaluator {
     //     }
     // }
     pub fn new() -> Self {
-        Self {
-            dialect: LibraDialect::new(),
-        }
+        Self::default()
     }
 }
 

@@ -19,7 +19,7 @@ impl MoveiContext {
 
     pub fn dialect(&self) -> impl MoveDialect {
         match self.package.config().profile.dialect {
-            SupportedDialect::Libra => LibraDialect::new(),
+            SupportedDialect::Libra => LibraDialect::default(),
             _ => unreachable!(),
         }
     }
