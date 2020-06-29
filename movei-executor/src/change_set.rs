@@ -4,7 +4,7 @@ use move_core_types::language_storage::ModuleId;
 use move_vm_types::{loaded_data::types::FatStructType, values::Struct};
 use std::collections::BTreeMap;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ChangeSet {
     changes: BTreeMap<AccountAddress, Vec<Change>>,
 }
@@ -21,17 +21,9 @@ impl From<ChangeSetMut> for ChangeSet {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ChangeSetMut {
     changes: BTreeMap<AccountAddress, Vec<Change>>,
-}
-
-impl ChangeSetMut {
-    pub fn new() -> Self {
-        Self {
-            changes: BTreeMap::new(),
-        }
-    }
 }
 
 impl ChangeSetMut {
@@ -66,7 +58,10 @@ impl ChangeSetMut {
     }
 
     pub fn add_change(&mut self, address: AccountAddress, change: Change) {
-        self.changes.entry(address).or_insert(vec![]).push(change);
+        self.changes
+            .entry(address)
+            .or_insert_with(Vec::new)
+            .push(change);
     }
 
     pub fn freeze(self) -> Result<ChangeSet> {

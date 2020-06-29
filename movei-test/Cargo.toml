@@ -8,8 +8,17 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
+rand = "0.7"
+tempfile = "3.1"
+itertools = "0.9"
 
 functional-tests = "0.1.0"
+libra-crypto = "0.1.0"
+libra-types = "0.1.0"
+language-e2e-tests = "0.1.0"
+move-lang = "0.0.1"
 
 datatest = {path = "../datatest"}
-
+movei-executor = {path = "../movei-executor"}
+dialect = {path = "../api/dialect"}
+movei-libra-dialect = {path = "../dialect/libra"}

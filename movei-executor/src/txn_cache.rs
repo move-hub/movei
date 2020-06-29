@@ -1,4 +1,4 @@
-use crate::run::change_set::{Change, ChangeSet, ChangeSetMut};
+use crate::change_set::{Change, ChangeSet, ChangeSetMut};
 use libra_types::{access_path::AccessPath, contract_event::ContractEvent};
 use move_core_types::{
     language_storage::ModuleId,
@@ -95,7 +95,7 @@ impl<'txn> TransactionDataCache<'txn> {
         let mut data_types = std::mem::replace(&mut self.data_types, BTreeMap::new());
         let mut old_data_map = std::mem::replace(&mut self.origin_data_map, BTreeMap::new());
 
-        let mut changes = ChangeSetMut::new();
+        let mut changes = ChangeSetMut::default();
 
         for (key, global_val) in data_map {
             let layout = data_types.remove(&key).unwrap();
@@ -129,7 +129,7 @@ impl<'txn> TransactionDataCache<'txn> {
         let module_map = std::mem::replace(&mut self.module_map, BTreeMap::new());
         for (module_id, module) in module_map {
             changes.add_change(
-                module_id.address().clone(),
+                *module_id.address(),
                 Change::AddModule(module_id.clone(), module),
             );
         }

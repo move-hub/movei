@@ -1,15 +1,11 @@
 #![allow(dead_code)]
 
-pub(crate) mod change_set;
 mod diff;
 mod host_config;
-pub mod state;
-pub(crate) mod txn_cache;
 
 use crate::context::MoveiContext;
 use anyhow::{Error, Result};
 use bytecode_verifier::VerifiedModule;
-use change_set::*;
 use clap::Clap;
 use dialect::MoveDialect;
 use libra_types::{account_address::AccountAddress, transaction::TransactionArgument};
@@ -20,8 +16,8 @@ use move_core_types::{
 use move_lang::{compiled_unit::CompiledUnit, shared::Address};
 use move_vm_runtime::move_vm::MoveVM;
 use move_vm_types::{gas_schedule::CostStrategy, values::Value};
+use movei_executor::{change_set::Change, state::FakeDataStore, txn_cache::TransactionDataCache};
 use resource_viewer::MoveValueAnnotator;
-use state::FakeDataStore;
 use std::{collections::HashMap, convert::TryFrom};
 use vm::access::ModuleAccess;
 
@@ -109,7 +105,7 @@ pub fn run(args: RunArgs, context: MoveiContext) -> Result<()> {
         data_store.add_module(&verified_module.self_id(), verified_module.as_inner());
     }
     let cost_table = dialect.cost_table();
-    let mut chain_state = super::run::txn_cache::TransactionDataCache::new(&data_store);
+    let mut chain_state = TransactionDataCache::new(&data_store);
     let mut cost_strategy = CostStrategy::transaction(&cost_table, GasUnits::new(u64::MAX));
     let main_script = main.unwrap();
     let type_args = vec![];

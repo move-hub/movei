@@ -2,13 +2,13 @@ use crate::{context::MoveiContext, TestArgs};
 use anyhow::{bail, Result};
 use datatest::{Requirements, TestOpts};
 use movei_test::{
-    command_impl::libra_command::{LibraCommandEvaluator, LibraTestCommand},
+    command_impl::libra_command::{LibraCommandEvaluator},
     functional_tests,
 };
 use std::path::Path;
 
 pub fn test(path: &Path) -> datatest::Result<()> {
-    let evaluator = LibraCommandEvaluator {};
+    let evaluator = LibraCommandEvaluator::new();
     let succ = functional_tests::<_, LibraCommandEvaluator>(evaluator, path)?;
     if !succ {
         panic!("test failed");

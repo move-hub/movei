@@ -5,6 +5,7 @@ members = [
    "dialect/libra",
    "datatest",
    "movei-test",
+   "movei-executor",
 ]
 
 [patch.crates-io]
@@ -28,3 +29,4 @@ vm-genesis = {package="vm-genesis",  git = "https://github.com/move-hub/libra", 
 move-vm-natives = {package="move-vm-natives",  git = "https://github.com/move-hub/libra", branch = "movei"}
 datatest-stable = {package="datatest-stable",  git = "https://github.com/move-hub/libra", branch = "movei"}
 functional-tests = {package="functional-tests",  git = "https://github.com/move-hub/libra", branch = "movei"}
+language-e2e-tests = {package="language-e2e-tests",  git = "https://github.com/move-hub/libra", branch = "movei"}
