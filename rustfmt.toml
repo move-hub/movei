@@ -1,3 +1,4 @@
 reorder_imports = true
 merge_imports = true
+format_macro_matchers = true
 edition = "2018"

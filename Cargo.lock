@@ -3,7 +3,7 @@
 [[package]]
 name = "abigen"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "heck",
@@ -178,6 +178,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
+name = "bitmaps"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031043d04099746d8db04daf1fa424b2bc8bd69d92b25962dcde24da39ab64a2"
+dependencies = [
+ "typenum",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -226,7 +235,7 @@ checksum = "c98bfd7c112b6399fef97cc0614af1cd375b27a112e552ce60f94c1b5f13cb74"
 [[package]]
 name = "borrow-graph"
 version = "0.0.1"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-workspace-hack",
  "mirai-annotations",
@@ -257,7 +266,7 @@ checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 [[package]]
 name = "bytecode-source-map"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "codespan",
@@ -274,7 +283,7 @@ dependencies = [
 [[package]]
 name = "bytecode-verifier"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "borrow-graph",
@@ -310,9 +319,9 @@ checksum = "4964518bd3b4a8190e832886cdc0da9794f12e8e6c1613a9e90ff331c4c8724b"
 
 [[package]]
 name = "cc"
-version = "1.0.55"
+version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1be3409f94d7bdceeb5f5fac551039d9b3f00e25da7a74fc4d33400a0d96368"
+checksum = "77c1f1d60091c1b73e2b1f4560ab419204b178e625fa945ded7b660becd2bd46"
 dependencies = [
  "jobserver",
 ]
@@ -350,7 +359,7 @@ dependencies = [
  "atty",
  "bitflags",
  "strsim 0.8.0",
- "textwrap",
+ "textwrap 0.11.0",
  "unicode-width",
  "vec_map",
 ]
@@ -358,7 +367,7 @@ dependencies = [
 [[package]]
 name = "clap"
 version = "3.0.0-beta.1"
-source = "git+https://github.com/clap-rs/clap/#5ca8dfb17d66d55ebb233eb9f3f3faf8de5a22c9"
+source = "git+https://github.com/clap-rs/clap/#9fc8ec965e42db926ef6aa894810c23600dac49d"
 dependencies = [
  "atty",
  "bitflags",
@@ -368,7 +377,7 @@ dependencies = [
  "os_str_bytes",
  "strsim 0.10.0",
  "termcolor",
- "textwrap",
+ "textwrap 0.12.0",
  "unicode-width",
  "vec_map",
 ]
@@ -376,7 +385,7 @@ dependencies = [
 [[package]]
 name = "clap_derive"
 version = "3.0.0-beta.1"
-source = "git+https://github.com/clap-rs/clap/#5ca8dfb17d66d55ebb233eb9f3f3faf8de5a22c9"
+source = "git+https://github.com/clap-rs/clap/#9fc8ec965e42db926ef6aa894810c23600dac49d"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -427,7 +436,7 @@ dependencies = [
 [[package]]
 name = "compiled-stdlib"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -445,7 +454,7 @@ dependencies = [
 [[package]]
 name = "compiler"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytecode-source-map",
@@ -473,9 +482,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation"
-version = "0.7.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b463447b41ba76cf803544e3276ca19f661b92e84200091df0f78ec1c8aa9808"
+checksum = "57d24c7a13c43e870e37c1556b74555437870a04514f7685f5b354e090567171"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -483,9 +492,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation-sys"
-version = "0.7.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90accdee0acac454f78a41d2eefc1212ec6eaa2ae6a216619389e996c0155c3c"
+checksum = "b3a71ab494c0b5b860bdc8407ae08978052417070c2ced38573a9157ad75b8ac"
 
 [[package]]
 name = "cpuid-bool"
@@ -604,7 +613,7 @@ dependencies = [
 [[package]]
 name = "datatest-stable"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-workspace-hack",
  "regex",
@@ -616,7 +625,7 @@ dependencies = [
 [[package]]
 name = "debug-interface"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "libra-logger",
@@ -678,7 +687,7 @@ checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 [[package]]
 name = "docgen"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "codespan",
@@ -818,7 +827,7 @@ checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 [[package]]
 name = "functional-tests"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -1191,6 +1200,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "im"
+version = "15.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "111c1983f3c5bb72732df25cddacee9b546d08325fb584b5ebd38148be7b0246"
+dependencies = [
+ "bitmaps",
+ "rand_core 0.5.1",
+ "rand_xoshiro",
+ "sized-chunks",
+ "typenum",
+ "version_check 0.9.2",
+]
+
+[[package]]
 name = "include_dir"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1244,7 +1267,7 @@ dependencies = [
 [[package]]
 name = "ir-to-bytecode"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytecode-source-map",
@@ -1263,7 +1286,7 @@ dependencies = [
 [[package]]
 name = "ir-to-bytecode-syntax"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "codespan",
@@ -1300,9 +1323,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.40"
+version = "0.3.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce10c23ad2ea25ceca0093bd3192229da4c5b3c0f2de499c1ecac0d98d452177"
+checksum = "c4b9172132a62451e56142bff9afc91c8e4a4500aa5b847da36815b63bfda916"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -1326,7 +1349,7 @@ dependencies = [
 [[package]]
 name = "language-e2e-tests"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -1369,7 +1392,7 @@ checksum = "9457b06509d27052635f90d6466700c65095fdf75409b3fbdd903e988b886f49"
 [[package]]
 name = "libra-canonical-serialization"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-workspace-hack",
  "serde",
@@ -1379,7 +1402,7 @@ dependencies = [
 [[package]]
 name = "libra-config"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "get_if_addrs",
  "libra-canonical-serialization",
@@ -1403,7 +1426,7 @@ dependencies = [
 [[package]]
 name = "libra-crypto"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -1436,7 +1459,7 @@ dependencies = [
 [[package]]
 name = "libra-crypto-derive"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-workspace-hack",
  "proc-macro2 1.0.18",
@@ -1447,7 +1470,7 @@ dependencies = [
 [[package]]
 name = "libra-github-client"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-crypto",
  "libra-workspace-hack",
@@ -1460,12 +1483,12 @@ dependencies = [
 [[package]]
 name = "libra-global-constants"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 
 [[package]]
 name = "libra-logger"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "chrono",
  "env_logger",
@@ -1479,7 +1502,7 @@ dependencies = [
 [[package]]
 name = "libra-metrics"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "futures",
@@ -1495,7 +1518,7 @@ dependencies = [
 [[package]]
 name = "libra-network-address"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-canonical-serialization",
  "libra-crypto",
@@ -1510,7 +1533,7 @@ dependencies = [
 [[package]]
 name = "libra-nibble"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-workspace-hack",
  "serde",
@@ -1519,7 +1542,7 @@ dependencies = [
 [[package]]
 name = "libra-proptest-helpers"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "crossbeam",
  "libra-workspace-hack",
@@ -1530,7 +1553,7 @@ dependencies = [
 [[package]]
 name = "libra-secure-storage"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "base64 0.12.3",
  "chrono",
@@ -1553,12 +1576,12 @@ dependencies = [
 [[package]]
 name = "libra-secure-time"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 
 [[package]]
 name = "libra-state-view"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "libra-crypto",
@@ -1569,7 +1592,7 @@ dependencies = [
 [[package]]
 name = "libra-temppath"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "hex",
  "libra-workspace-hack",
@@ -1579,7 +1602,7 @@ dependencies = [
 [[package]]
 name = "libra-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1608,7 +1631,7 @@ dependencies = [
 [[package]]
 name = "libra-vault-client"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "base64 0.12.3",
  "chrono",
@@ -1624,7 +1647,7 @@ dependencies = [
 [[package]]
 name = "libra-vm"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "debug-interface",
  "libra-canonical-serialization",
@@ -1648,7 +1671,7 @@ dependencies = [
 [[package]]
 name = "libra-workspace-hack"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "bytes",
  "cc",
@@ -1789,9 +1812,9 @@ dependencies = [
 
 [[package]]
 name = "mio-named-pipes"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5e374eff525ce1c5b7687c4cef63943e7686524a387933ad27ca7ec43779cb3"
+checksum = "0840c1c50fd55e521b247f949c241c9997709f23bd7f023b9762cd561e935656"
 dependencies = [
  "log 0.4.8",
  "mio",
@@ -1841,7 +1864,7 @@ checksum = "258c143ddb5105becc4834f66d0b0ad3d3205d07cb3efc3236f33f623dd07b16"
 [[package]]
 name = "move-core-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "hex",
@@ -1861,7 +1884,7 @@ dependencies = [
 [[package]]
 name = "move-ir-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "codespan",
@@ -1876,7 +1899,7 @@ dependencies = [
 [[package]]
 name = "move-lang"
 version = "0.0.1"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "borrow-graph",
@@ -1903,7 +1926,7 @@ dependencies = [
 [[package]]
 name = "move-prover"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "abigen",
  "anyhow",
@@ -1935,7 +1958,7 @@ dependencies = [
 [[package]]
 name = "move-vm-natives"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "bit-vec",
  "libra-crypto",
@@ -1952,7 +1975,7 @@ dependencies = [
 [[package]]
 name = "move-vm-runtime"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "bytecode-verifier",
  "libra-crypto",
@@ -1970,7 +1993,7 @@ dependencies = [
 [[package]]
 name = "move-vm-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-canonical-serialization",
  "libra-crypto",
@@ -2027,6 +2050,19 @@ dependencies = [
  "move-vm-runtime",
  "move-vm-types",
  "vm",
+]
+
+[[package]]
+name = "movei-fmt"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "datatest",
+ "difference",
+ "im",
+ "itertools",
+ "move-ir-types",
+ "move-lang",
 ]
 
 [[package]]
@@ -2202,7 +2238,7 @@ dependencies = [
 [[package]]
 name = "num-variants"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "libra-workspace-hack",
  "proc-macro2 1.0.18",
@@ -2739,6 +2775,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_xoshiro"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9fcdd2e881d02f1d9390ae47ad8e5696a9e4be7b547a1da2afbc61973217004"
+dependencies = [
+ "rand_core 0.5.1",
+]
+
+[[package]]
 name = "rayon"
 version = "1.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2863,7 +2908,7 @@ dependencies = [
 [[package]]
 name = "resource-viewer"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "compiled-stdlib",
@@ -3068,9 +3113,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.55"
+version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec2c5d7e739bc07a3e73381a39d61fdb5f671c60c1df26a130690665803d8226"
+checksum = "3433e879a558dde8b5e8feb2a04899cf34fdde1fafb894687e52105fc1162ac3"
 dependencies = [
  "itoa",
  "ryu",
@@ -3197,6 +3242,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b8de496cf83d4ed58b6be86c3a275b8602f6ffe98d3024a869e124147a9a3ac"
 
 [[package]]
+name = "sized-chunks"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ec31ceca5644fa6d444cc77548b88b67f46db6f7c71683b0f9336e671830d2f"
+dependencies = [
+ "bitmaps",
+ "typenum",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3217,7 +3272,7 @@ dependencies = [
 [[package]]
 name = "spec-lang"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytecode-source-map",
@@ -3246,7 +3301,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "stackless-bytecode-generator"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "borrow-graph",
  "bytecode-verifier",
@@ -3272,7 +3327,7 @@ dependencies = [
 [[package]]
 name = "stdlib"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -3460,6 +3515,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "textwrap"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e30fc9a1b93fe45a3811654d49ead7306cf8fb18aa7fe6bf630a1099111cd2d6"
+dependencies = [
+ "unicode-width",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3641,7 +3705,7 @@ checksum = "e987b6bf443f4b5b3b6f38704195592cca41c5bb7aedd3c3693c7081f8289860"
 [[package]]
 name = "transaction-builder"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "compiled-stdlib",
  "libra-canonical-serialization",
@@ -3655,7 +3719,7 @@ dependencies = [
 [[package]]
 name = "transaction-builder-generator"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "libra-canonical-serialization",
@@ -3663,7 +3727,7 @@ dependencies = [
  "libra-workspace-hack",
  "move-core-types",
  "structopt",
- "textwrap",
+ "textwrap 0.11.0",
 ]
 
 [[package]]
@@ -3762,9 +3826,9 @@ checksum = "e83e153d1053cbb5a118eeff7fd5be06ed99153f00dbcd8ae310c5fb2b22edc0"
 
 [[package]]
 name = "unicode-width"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caaa9d531767d1ff2150b9332433f32a24622147e5ebb1f26409d5da67afd479"
+checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 
 [[package]]
 name = "unicode-xid"
@@ -3863,7 +3927,7 @@ checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 [[package]]
 name = "vm"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "libra-crypto",
@@ -3878,7 +3942,7 @@ dependencies = [
 [[package]]
 name = "vm-genesis"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#ad33d63c131e28d4e6261c11c82d65a51a71f678"
+source = "git+https://github.com/move-hub/libra?branch=movei#b0a5058c718258af72498261dcda4f8b2610c595"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -3964,9 +4028,9 @@ checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.63"
+version = "0.2.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c2dc4aa152834bc334f506c1a06b866416a8b6697d5c9f75b9a689c8486def0"
+checksum = "6a634620115e4a229108b71bde263bb4220c483b3f07f5ba514ee8d15064c4c2"
 dependencies = [
  "cfg-if",
  "serde",
@@ -3976,9 +4040,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.63"
+version = "0.2.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ded84f06e0ed21499f6184df0e0cb3494727b0c5da89534e0fcc55c51d812101"
+checksum = "3e53963b583d18a5aa3aaae4b4c1cb535218246131ba22a71f05b518098571df"
 dependencies = [
  "bumpalo",
  "lazy_static",
@@ -3991,9 +4055,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.13"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64487204d863f109eb77e8462189d111f27cb5712cc9fdb3461297a76963a2f6"
+checksum = "dba48d66049d2a6cc8488702e7259ab7afc9043ad0dc5448444f46f2a453b362"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -4003,9 +4067,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.63"
+version = "0.2.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "838e423688dac18d73e31edce74ddfac468e37b1506ad163ffaf0a46f703ffe3"
+checksum = "3fcfd5ef6eec85623b4c6e844293d4516470d8f19cd72d0d12246017eb9060b8"
 dependencies = [
  "quote 1.0.7",
  "wasm-bindgen-macro-support",
@@ -4013,9 +4077,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.63"
+version = "0.2.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3156052d8ec77142051a533cdd686cba889537b213f948cd1d20869926e68e92"
+checksum = "9adff9ee0e94b926ca81b57f57f86d5545cdcb1d259e21ec9bdd95b901754c75"
 dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
@@ -4026,15 +4090,15 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.63"
+version = "0.2.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9ba19973a58daf4db6f352eda73dc0e289493cd29fb2632eb172085b6521acd"
+checksum = "7f7b90ea6c632dd06fd765d44542e234d5e63d9bb917ecd64d79778a13bd79ae"
 
 [[package]]
 name = "web-sys"
-version = "0.3.40"
+version = "0.3.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b72fe77fd39e4bd3eaa4412fd299a0be6b3dfe9d2597e2f1c20beb968f41d17"
+checksum = "863539788676619aac1a23e2df3655e96b32b0e05eb72ca34ba045ad573c625d"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
