@@ -41,12 +41,8 @@ pub fn parse<P: Command>(
     let mut cur_command: Option<P> = None;
 
     for (line_idx, line) in lines.into_iter().enumerate() {
-        let line = line.as_ref().trim();
-        // skip empty lines
-        if line.is_empty() {
-            continue;
-        }
-        match line.parse::<Directive<P>>() {
+        let line = line.as_ref();
+        match line.trim().parse::<Directive<P>>() {
             Ok(directive) => match directive {
                 Directive::CommandDirective(c) => {
                     if let Some(cur) = cur_command.take() {
@@ -77,6 +73,10 @@ pub fn parse<P: Command>(
                 } else if let Some(c) = cur_command.as_mut() {
                     c.add_textline(line)?;
                 } else {
+                    // skip empty lines
+                    if line.is_empty() {
+                        continue;
+                    }
                     // skip comment line without any context.
                     if line.starts_with("//") {
                         continue;

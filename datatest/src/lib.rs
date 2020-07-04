@@ -1,5 +1,5 @@
 pub use datatest_stable::*;
-use std::{io};
+use std::io;
 pub fn run(options: TestOpts, reqs: &[Requirements]) -> io::Result<bool> {
     let tests: Vec<Test> = reqs.iter().flat_map(|req| req.expand()).collect();
 

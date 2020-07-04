@@ -24,6 +24,11 @@ fn main() -> anyhow::Result<()> {
             let context = MoveiContext::new(pacakge_root)?;
             movei::test::run(arg, context)?;
         }
+        Command::Fmt(arg) => {
+            // let pacakge_root = utils::get_package_root()?.unwrap();
+            // let context = MoveiContext::new(pacakge_root)?;
+            movei::fmt::run(arg)?;
+        }
     }
     Ok(())
 }

@@ -8,10 +8,7 @@ use functional_tests::{
 };
 use libra_types::account_address::AccountAddress as LibraAddress;
 use move_lang::{
-    compiled_unit::CompiledUnit,
-    move_compile_no_report,
-    shared::Address,
-    test_utils::{read_bool_var},
+    compiled_unit::CompiledUnit, move_compile_no_report, shared::Address, test_utils::read_bool_var,
 };
 use std::{convert::TryFrom, fmt, io::Write};
 use tempfile::NamedTempFile;
@@ -43,7 +40,7 @@ impl std::error::Error for MoveSourceCompilerError {}
 
 impl Compiler for MoveSourceCompiler {
     /// Compile a transaction script or module.
-    fn compile<Logger: FnMut(String) >(
+    fn compile<Logger: FnMut(String)>(
         &mut self,
         _log: Logger,
         address: LibraAddress,

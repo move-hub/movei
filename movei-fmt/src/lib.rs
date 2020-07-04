@@ -1,25 +1,13 @@
 #[macro_use]
 extern crate im;
-
 pub mod pretty;
 
-use crate::pretty::{
-    break_, concat, delim, force_break, group, line, lines, nest, nil, Document, Documentable,
-};
+use crate::pretty::{break_, concat, delim, group, line, lines, nest, nil, Document, Documentable};
 use itertools::Itertools;
 use move_lang::{
-    parser::{
-        ast,
-        ast::{ModuleAccess_, ModuleName, Type, Type_},
-        syntax,
-    },
-    shared::{
-        ast_debug::{AstDebug, AstWriter},
-        Address, Name,
-    },
+    parser::{ast, ast::Type_},
+    shared::Name,
 };
-use std::ops::Deref;
-use Document::*;
 
 pub struct Formatter;
 
@@ -33,18 +21,18 @@ macro_rules! indent {
             .nest($n)
     };
 }
-
-macro_rules! nest {
-    ($n:literal, $($doc:expr),*) => {{
-        Document::Nil$(
-            .append($doc)
-        )*.nest($n)
-    }};
-}
+//
+// macro_rules! nest {
+//     ($n:literal, $($doc:expr),*) => {{
+//         Document::Nil$(
+//             .append($doc)
+//         )*.nest($n)
+//     }};
+// }
 
 macro_rules! group {
     ($($doc:expr),+) => {
-        Group(Box::new(Document::Nil$(.append($doc))+))
+        Document::Nil$(.append($doc))+.group()
     };
 }
 
@@ -66,11 +54,11 @@ impl Formatter {
 
     pub fn script(script: &ast::Script) -> Document {
         let ast::Script {
-            loc,
+            loc: _,
             uses,
             constants,
             function,
-            specs,
+            specs: _,
         } = script;
         let uses = uses.to_doc();
         let consts = concat(constants.iter().map(|u| u.to_doc()).intersperse(line()));
@@ -92,12 +80,31 @@ where
     if let None = args.peek() {
         return format!("{}{}", open, close).to_doc();
     }
+    // open.to_doc()
+    //     .append(concat(args.intersperse(pretty::delim(delim))).flex_group(INDENT))
+    //     .append(close.to_doc())
     break_(open, open)
         .append(concat(args.intersperse(pretty::delim(delim))))
         .nest(INDENT)
         .append(break_(delim, ""))
         .append(close)
         .group()
+}
+
+pub fn wrap_list<I, D: Documentable>(open: &str, close: &str, delim: &str, args: I) -> Document
+where
+    I: Iterator<Item = D>,
+{
+    let mut args = args.peekable();
+    if let None = args.peek() {
+        return format!("{}{}", open, close).to_doc();
+    }
+    let items = args.map(|d| d.to_doc()).intersperse(pretty::delim(delim));
+    break_(open, open)
+        .append(concat(items))
+        .nest(INDENT)
+        .append(break_(delim, ""))
+        .append(close)
 }
 
 impl Documentable for ast::Function {
@@ -157,19 +164,27 @@ impl Documentable for ast::FunctionSignature {
             parameters,
             return_type,
         } = self;
-        let type_parameters = TypeParameters(type_parameters.clone());
-        let parameters = wrap_args(
+        // let type_parameters = TypeParameters(type_parameters.clone());
+        let type_items = wrap_list("<", ">", ",", type_parameters.iter());
+        let param_items = wrap_list(
             "(",
             ")",
             ",",
-            parameters.iter().map(|(n, t)| concats!(n, ": ", t)),
+            parameters
+                .iter()
+                .map(|(n, t)| nil().append(n).append(": ").append(t)),
         );
+
         let ret = if let ast::Type_::Unit = &return_type.value {
             nil()
         } else {
             concats!(":", return_type)
         };
-        concats!(type_parameters, parameters, ret)
+        group! {
+            group!(type_items),
+            param_items,
+            ret
+        }
     }
 }
 
@@ -181,7 +196,14 @@ impl Documentable for TypeParameters {
         if self.0.is_empty() {
             nil()
         } else {
-            wrap_args("<", ">", ",", self.0.iter().map(|p| p.to_doc()))
+            let parameters = concat(
+                self.0
+                    .iter()
+                    .map(|p| p.to_doc())
+                    .intersperse(pretty::delim(",")),
+            );
+            break_("", "").append(parameters)
+            // wrap_args("<", ">", ",", self.0.iter().map(|p| p.to_doc()))
         }
     }
 }
@@ -281,6 +303,13 @@ impl Documentable for ast::Constant {
     }
 }
 
+impl Documentable for Vec<ast::Type> {
+    fn to_doc(&self) -> Document {
+        let items = self.iter().map(|d| d.to_doc()).intersperse(delim(","));
+        concat(items)
+    }
+}
+
 impl Documentable for ast::Type_ {
     fn to_doc(&self) -> Document {
         match self {
@@ -316,28 +345,33 @@ impl Documentable for ast::Exp_ {
             E::Copy(v) => concats!("copy ", v),
             E::Name(ma, tys_opt) => {
                 let tys = if let Some(ss) = tys_opt {
-                    wrap_args("<", ">", ",", ss.iter().map(|d| d.to_doc()))
+                    wrap_list("<", ">", ",", ss.iter())
                 } else {
                     nil()
                 };
-                concats!(ma, tys)
+                nil().append(ma).append(tys)
             }
             E::Call(ma, tys_opt, rhs) => {
                 let tys = if let Some(ss) = tys_opt {
-                    wrap_args("<", ">", ",", ss.iter().map(|d| d.to_doc()))
+                    wrap_list("<", ">", ",", ss.iter()).group()
                 } else {
                     nil()
                 };
-                let rhs = wrap_args("(", ")", ",", rhs.value.iter().map(|d| d.to_doc()));
-                concats!(ma, tys, rhs)
+                nil()
+                    .append(ma)
+                    .append(tys)
+                    .append(wrap_list("(", ")", ",", rhs.value.iter()))
+                    .group()
             }
             E::Pack(ma, tys_opt, fields) => {
                 let tys = if let Some(ss) = tys_opt {
-                    wrap_args("<", ">", ",", ss.iter().map(|s| s.to_doc()))
+                    wrap_list("<", ">", ",", ss.iter())
                 } else {
-                    Document::Nil
+                    nil()
                 };
-
+                // nil().append(ma).append(tys).append(
+                //     nil().append("{").append(line())
+                // )
                 let fields = fields
                     .iter()
                     .map(|(f, e)| concats!(f, ": ", e))
@@ -391,7 +425,7 @@ impl Documentable for ast::Exp_ {
             E::Cast(e, ty) => concats!("(", e.as_ref(), " as ", ty, ")"),
             E::Index(e, i) => concats!(e.as_ref(), "[", i.as_ref(), "]"),
             E::Annotate(e, ty) => concats!("(", e.as_ref(), ": ", ty, ")"),
-            E::Spec(s) => todo!(),
+            E::Spec(_s) => todo!(),
             E::UnresolvedError => "_|_".to_doc(),
         }
     }
@@ -485,7 +519,7 @@ impl Documentable for ast::Bind_ {
                 let fields = concat(fields.iter().map(|(f, b)| concats!(f, ": ", b, line())));
                 let fields = nest(2, "{".to_doc().append(line()).append(fields));
                 let fields = fields.append(line()).append("}");
-                tys_opt.append(fields)
+                ma.to_doc().append(tys_opt).append(fields)
             }
         }
     }
@@ -544,32 +578,5 @@ where
 {
     fn to_doc(&self) -> Document {
         self.value.to_doc()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{pretty, syntax, Formatter};
-    use crate::pretty::{Document, Documentable};
-    use anyhow::Result;
-    use std::collections::BTreeMap;
-    #[test]
-    fn test_script() -> Result<()> {
-        let input = r"
-        script {
-            use 0x01::A;
-            use 0x02::A as B;
-            use 0x03::A::a;
-            use 0x03::A::{a as b};
-            use 0x03::A::{a as b, c as d, d};
-            const A: address = {2};
-            fun main() {}
-        }
-        ";
-        let (r, _) = syntax::parse_file_string("test", input, BTreeMap::new()).unwrap();
-        let definition = r.first().unwrap();
-        let doc = Formatter::definition(definition);
-        println!("{}", pretty::format(40, doc));
-        Ok(())
     }
 }

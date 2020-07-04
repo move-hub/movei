@@ -64,7 +64,6 @@ pub fn parse(data: &str) -> Result<Config> {
 mod tests {
     use super::*;
 
-    
     #[test]
     pub fn test_config_serde() -> Result<()> {
         let c = LibraHostConfig::default();

@@ -2027,6 +2027,7 @@ dependencies = [
  "move-vm-runtime",
  "move-vm-types",
  "movei-executor",
+ "movei-fmt",
  "movei-libra-dialect",
  "movei-libra-test",
  "movei-test",
@@ -2057,12 +2058,23 @@ name = "movei-fmt"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "datatest",
- "difference",
  "im",
  "itertools",
  "move-ir-types",
  "move-lang",
+]
+
+[[package]]
+name = "movei-fmt-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "datatest",
+ "difference",
+ "itertools",
+ "move-lang",
+ "movei-fmt",
+ "movei-test",
 ]
 
 [[package]]

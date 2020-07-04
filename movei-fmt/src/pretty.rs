@@ -332,8 +332,18 @@ impl Document {
         Document::NestCurrent(Box::new(self))
     }
 
+    pub fn breakable_append(self, x: impl Documentable) -> Document {
+        self.append(break_("", "")).append(x)
+    }
     pub fn append(self, x: impl Documentable) -> Document {
-        Document::Cons(Box::new(self), Box::new(x.to_doc()))
+        let x = x.to_doc();
+        if matches!(x, Document::Nil) {
+            self
+        } else if matches!(self, Document::Nil) {
+            x
+        } else {
+            Document::Cons(Box::new(self), Box::new(x))
+        }
     }
 
     pub fn format(self, limit: isize) -> String {

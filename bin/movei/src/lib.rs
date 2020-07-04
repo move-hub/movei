@@ -4,11 +4,12 @@ use crate::new::NewPackageArgs;
 use clap::Clap;
 use move_core_types::account_address::AccountAddress;
 use move_lang::{command_line::parse_address, shared::Address};
-use std::num::NonZeroUsize;
+use std::{num::NonZeroUsize, path::PathBuf};
 
 pub mod build;
 pub mod check;
 pub mod context;
+pub mod fmt;
 pub mod new;
 pub mod run;
 pub mod test;
@@ -31,6 +32,9 @@ pub enum Command {
     #[clap(name = "test")]
     /// run tests
     Test(TestArgs),
+    #[clap(name = "fmt")]
+    /// fmt code
+    Fmt(FmtArgs),
 }
 
 #[derive(Clap, Debug)]
@@ -80,4 +84,12 @@ pub struct TestArgs {
     #[clap(long)]
     /// List all tests
     pub list: bool,
+}
+
+#[derive(Clap, Debug)]
+pub struct FmtArgs {
+    #[clap(short, long)]
+    pub width: u32,
+    #[clap(name = "input", parse(from_os_str))]
+    pub input: PathBuf,
 }

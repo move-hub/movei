@@ -36,3 +36,4 @@ datatest = {path = "../../datatest"}
 movei-test = {path = "../../movei-test"}
 movei-libra-test = {path = "../../movei-test/movei-libra-test"}
 movei-executor = {path = "../../movei-executor"}
+movei-fmt = {path = "../../movei-fmt"}
