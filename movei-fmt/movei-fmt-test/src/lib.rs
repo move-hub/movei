@@ -24,10 +24,12 @@ pub fn functional_test(p: &Path) -> datatest::Result<()> {
 
 fn run_fmt(width: u64, text: &str) -> Result<()> {
     let text = text.trim();
+    let (stripped, comments) = move_lang::strip_comments_and_verify("test", text).unwrap();
     let (defs, _comments) =
-        parser::syntax::parse_file_string("test", text, BTreeMap::new()).unwrap();
+        parser::syntax::parse_file_string("test", stripped.as_str(), comments.clone()).unwrap();
     let def = defs.first().unwrap();
-    let doc = Formatter::definition(def);
+    let mut formatter = Formatter::new(text, comments);
+    let doc = formatter.definition(def);
     let res = pretty::format(width as isize, doc);
     assert_diff!(text, res.as_str(), "\n", 0);
     Ok(())

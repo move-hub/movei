@@ -89,9 +89,7 @@ impl<D: Documentable> Documentable for Option<D> {
 
 pub fn concat(mut docs: impl Iterator<Item = Document>) -> Document {
     let init = docs.next().unwrap_or_else(|| nil());
-    docs.fold(init, |acc, doc| {
-        Document::Cons(Box::new(acc), Box::new(doc))
-    })
+    docs.fold(init, |acc, doc| acc.append(doc))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

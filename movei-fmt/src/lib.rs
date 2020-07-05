@@ -3,13 +3,88 @@ extern crate im;
 pub mod pretty;
 
 use crate::pretty::{break_, concat, delim, group, line, lines, nest, nil, Document, Documentable};
+use codespan::Span;
 use itertools::Itertools;
+use move_ir_types::location::Spanned;
 use move_lang::{
     parser::{ast, ast::Type_},
     shared::Name,
+    FileCommentMap,
 };
+use std::{borrow::BorrowMut, cell::RefCell, collections::BTreeMap, rc::Rc};
 
-pub struct Formatter;
+struct Comment<'a> {
+    pub span: Span,
+    pub content: &'a str,
+}
+pub enum CommentType {
+    Block,
+    Line,
+    // Unknown
+}
+
+impl<'a> Comment<'a> {
+    pub fn comment_type(&self) -> CommentType {
+        if self.content.starts_with("//") {
+            return CommentType::Line;
+        } else if self.content.starts_with("/*") {
+            return CommentType::Block;
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+pub struct Formatter<'a> {
+    inner: RefCell<Inner<'a>>,
+}
+
+impl<'a> Formatter<'a> {
+    pub fn new(source: &'a str, comment_map: FileCommentMap) -> Self {
+        let inner = Inner::new(source, comment_map);
+
+        Self {
+            inner: RefCell::new(inner),
+        }
+    }
+
+    pub fn pop_doc_comments(&self, limit: usize) -> impl Iterator<Item = Comment<'a>> {
+        self.inner.borrow_mut().pop_doc_comments(limit)
+    }
+}
+
+struct Inner<'a> {
+    doc_comments: Vec<Span>,
+    source: &'a str,
+}
+
+impl<'a> Inner<'a> {
+    pub fn new(source: &'a str, comment_map: FileCommentMap) -> Self {
+        Self {
+            source,
+            doc_comments: comment_map.keys().cloned().collect(),
+        }
+    }
+    // Pop comments that occur before a byte-index in the source
+    pub fn pop_doc_comments(&mut self, limit: usize) -> impl Iterator<Item = Comment<'a>> {
+        let spans = self
+            .doc_comments
+            .iter()
+            .take_while_ref(|span| span.start().to_usize() < limit)
+            .map(|s| *s)
+            .collect::<Vec<_>>();
+        self.doc_comments.drain(0..spans.len());
+        let mut comments = Vec::with_capacity(spans.len());
+        for s in spans {
+            let comment = Comment {
+                span: s,
+                content: &self.source[s.start().to_usize()..s.end().to_usize()],
+            };
+            comments.push(comment);
+        }
+        comments.into_iter()
+    }
+}
 
 const INDENT: isize = 2isize;
 
@@ -44,34 +119,69 @@ macro_rules! concats {
     }};
 }
 
-impl Formatter {
-    pub fn definition(expr: &ast::Definition) -> Document {
+impl<'a> Formatter<'a> {
+    pub fn definition(&mut self, expr: &ast::Definition) -> Document {
         match expr {
-            ast::Definition::Script(s) => Self::script(s),
+            ast::Definition::Script(s) => self.script(s),
             _ => todo!(),
         }
     }
 
-    pub fn script(script: &ast::Script) -> Document {
+    pub fn script(&mut self, script: &ast::Script) -> Document {
         let ast::Script {
-            loc: _,
+            loc: loc,
             uses,
             constants,
             function,
             specs: _,
         } = script;
+        let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
+
         let uses = uses.to_doc();
-        let consts = concat(constants.iter().map(|u| u.to_doc()).intersperse(line()));
-        let func = function.to_doc();
-        let body = concat(vec![uses, consts, func].into_iter().intersperse(lines(1)));
-        "script "
+        let consts = concat(
+            constants
+                .iter()
+                .map(|c| self.constant_(c))
+                .intersperse(line()),
+        );
+        let func = self.fn_(function);
+        let body = {
+            let userful_items = vec![uses, consts, func]
+                .into_iter()
+                .filter(|d| !matches!(d, Document::Nil));
+            concat(userful_items.intersperse(lines(2)))
+        };
+        let body = "script "
             .to_doc()
             .append("{")
             .append(indent!(2, body))
             .append(line())
-            .append("}")
+            .append("}");
+
+        comments.append(body)
+    }
+
+    fn fn_(&mut self, function: &ast::Function) -> Document {
+        let comments = comments(self.pop_doc_comments(function.loc.span().start().to_usize()));
+        comments.append(function.to_doc())
+    }
+
+    fn constant_(&mut self, constant: &ast::Constant) -> Document {
+        let loc = constant.loc;
+        let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
+        comments.append(constant)
     }
 }
+
+fn comments<'a>(items: impl Iterator<Item = Comment<'a>>) -> Document {
+    let mut items = items.peekable();
+
+    if items.peek().is_none() {
+        return nil();
+    }
+    concat(items.map(|i| i.content.to_doc()).intersperse(line())).append(line())
+}
+
 pub fn wrap_args<I>(open: &str, close: &str, delim: &str, args: I) -> Document
 where
     I: Iterator<Item = Document>,
@@ -578,5 +688,36 @@ where
 {
     fn to_doc(&self) -> Document {
         self.value.to_doc()
+    }
+}
+
+struct WrappedDocumentable<'f, 's, 'd, D: Documentable>
+where
+    's: 'f,
+{
+    formatter: &'f Formatter<'s>,
+    doc: &'d Spanned<D>,
+}
+
+impl<'f, 's, 'd, D> WrappedDocumentable<'f, 's, 'd, D>
+where
+    D: Documentable,
+    's: 'f,
+{
+    pub fn new(formatter: &'f Formatter<'s>, doc: &'d Spanned<D>) -> Self {
+        Self { formatter, doc }
+    }
+}
+
+impl<'f, 's, 'd, D> Documentable for WrappedDocumentable<'f, 's, 'd, D>
+where
+    D: Documentable,
+    's: 'f,
+{
+    fn to_doc(&self) -> Document {
+        let poped_comments = self
+            .formatter
+            .pop_doc_comments(self.doc.loc.span().start().to_usize());
+        comments(poped_comments).append(&self.doc)
     }
 }

@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 im = "15.0"
 itertools = "0.9"
+codespan = "0.8"
 anyhow="1.0"
 move-lang = "0.0.1"
 move-ir-types = "0.1.0"
