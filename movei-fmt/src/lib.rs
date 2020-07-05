@@ -11,7 +11,7 @@ use move_lang::{
     shared::Name,
     FileCommentMap,
 };
-use std::{borrow::BorrowMut, cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::{any::Any, borrow::BorrowMut, cell::RefCell, collections::BTreeMap, rc::Rc};
 
 struct Comment<'a> {
     pub span: Span,
@@ -120,14 +120,14 @@ macro_rules! concats {
 }
 
 impl<'a> Formatter<'a> {
-    pub fn definition(&mut self, expr: &ast::Definition) -> Document {
+    pub fn definition(&self, expr: &ast::Definition) -> Document {
         match expr {
             ast::Definition::Script(s) => self.script(s),
             _ => todo!(),
         }
     }
 
-    pub fn script(&mut self, script: &ast::Script) -> Document {
+    pub fn script(&self, script: &ast::Script) -> Document {
         let ast::Script {
             loc: loc,
             uses,
@@ -137,13 +137,15 @@ impl<'a> Formatter<'a> {
         } = script;
         let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
 
-        let uses = uses.to_doc();
+        let uses = concat(uses.iter().map(|u| self.use_(u)).intersperse(line()));
+
         let consts = concat(
             constants
                 .iter()
-                .map(|c| self.constant_(c))
+                .map(|c| self.documented_constant(c))
                 .intersperse(line()),
         );
+
         let func = self.fn_(function);
         let body = {
             let userful_items = vec![uses, consts, func]
@@ -161,15 +163,446 @@ impl<'a> Formatter<'a> {
         comments.append(body)
     }
 
-    fn fn_(&mut self, function: &ast::Function) -> Document {
-        let comments = comments(self.pop_doc_comments(function.loc.span().start().to_usize()));
-        comments.append(function.to_doc())
+    fn use_(&self, use_stmt: &ast::Use) -> Document {
+        fn use_member_(member_name: &Name, alias: Option<&Name>) -> Document {
+            let member = if let Some(n) = alias {
+                format!("{} as {}", member_name, n)
+            } else {
+                format!("{}", member_name)
+            };
+            member.to_doc()
+        }
+
+        let doc = "use ".to_doc();
+        match use_stmt {
+            ast::Use::Module(module_ident, opt_name) => doc
+                .append(&module_ident.0.value)
+                .append(if let Some(name) = opt_name {
+                    format!(" as {}", name).to_doc()
+                } else {
+                    nil()
+                })
+                .append(";"),
+            ast::Use::Members(module_indent, members) => {
+                let doc = concats!(doc, &module_indent.0.value, "::");
+                let doc = if members.len() == 1 {
+                    let (member_name, alias) = members.first().unwrap();
+                    concats!(doc, use_member_(member_name, alias.as_ref()))
+                } else if members.len() > 1 {
+                    let members = wrap_args(
+                        "{",
+                        "}",
+                        ",",
+                        members
+                            .into_iter()
+                            .map(|(name, alias)| use_member_(name, alias.as_ref())),
+                    );
+                    concats!(doc, members)
+                } else {
+                    nil()
+                };
+                concats!(doc, ";")
+            }
+        }
     }
 
-    fn constant_(&mut self, constant: &ast::Constant) -> Document {
+    fn fn_(&self, function: &ast::Function) -> Document {
+        let comments = comments(self.pop_doc_comments(function.loc.span().start().to_usize()));
+        let ast::Function {
+            visibility,
+            signature,
+            acquires,
+            name,
+            body,
+            ..
+        } = function;
+        let visibility = {
+            use ast::FunctionVisibility as F;
+            match visibility {
+                F::Internal => nil(),
+                F::Public(_) => "public ".to_doc(),
+            }
+        };
+        let native_opt = if let ast::FunctionBody_::Native = &body.value {
+            "native ".to_doc()
+        } else {
+            nil()
+        };
+
+        let func = visibility
+            .append(native_opt)
+            .append("fun ")
+            .append(name)
+            .append(self.fn_signature_(signature))
+            .append(self.fn_acquires_(acquires))
+            .append(" ")
+            .append(self.fn_body_(body));
+
+        comments.append(func)
+    }
+
+    fn fn_signature_(&self, fn_signature: &ast::FunctionSignature) -> Document {
+        let ast::FunctionSignature {
+            type_parameters,
+            parameters,
+            return_type,
+        } = fn_signature;
+        let type_parameters = type_parameters.iter().map(|t| self.fn_type_parameter_(t));
+        let type_items = wrap_list("<", ">", ",", type_parameters);
+        let param_items = wrap_list(
+            "(",
+            ")",
+            ",",
+            parameters.iter().map(|p| self.fn_parameter_(p)),
+        );
+
+        let ret = if let ast::Type_::Unit = &return_type.value {
+            nil()
+        } else {
+            let return_type = self.type_(return_type);
+            concats!(":", return_type)
+        };
+        group! {
+            group!(type_items),
+            param_items,
+            ret
+        }
+    }
+    fn fn_type_parameter_(&self, type_parameter: &(Name, ast::Kind)) -> Document {
+        let (n, k) = type_parameter;
+        use ast::Kind_ as K;
+        let k = match k.value {
+            K::Unknown => nil(),
+            K::Resource => ": resource".to_doc(),
+            K::Affine => ": copyable".to_doc(),
+            K::Copyable => panic!("ICE 'copyable' kind constraint"),
+        };
+        concats!(n, k)
+    }
+    fn fn_parameter_(&self, parameter: &(ast::Var, ast::Type)) -> Document {
+        let (n, t) = parameter;
+        let t = self.type_(t);
+        nil().append(n).append(": ").append(t)
+    }
+
+    fn fn_acquires_(&self, acquires: &[ast::ModuleAccess]) -> Document {
+        if acquires.is_empty() {
+            return nil();
+        };
+        let acquires = wrap_args("", "", ",", acquires.iter().map(|ma| ma.to_doc()));
+        "acquires ".to_doc().append(acquires)
+    }
+
+    fn fn_body_(&self, body: &ast::FunctionBody) -> Document {
+        use ast::FunctionBody_ as B;
+        match &body.value {
+            B::Native => ";".to_doc(),
+            B::Defined(s) => self.sequence_(s),
+        }
+    }
+
+    fn documented_constant(&self, constant: &ast::Constant) -> Document {
         let loc = constant.loc;
         let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
-        comments.append(constant)
+        comments.append(self.constant_(constant))
+    }
+
+    fn constant_(&self, constant: &ast::Constant) -> Document {
+        let ast::Constant {
+            signature,
+            name,
+            value,
+            ..
+        } = constant;
+        let signature = self.type_(signature);
+        let value = self.exp_(value);
+        concats!("const ", &name.0, ": ", signature, " = ", value, ";")
+    }
+
+    fn type_(&self, ty: &ast::Type) -> Document {
+        match &ty.value {
+            Type_::Unit => "()".to_doc(),
+            Type_::Multiple(ss) => {
+                let ss = ss.iter().map(|d| self.type_(d));
+                wrap_args("(", ")", ",", ss)
+            }
+            Type_::Apply(module_access, ss) => {
+                let tys = if ss.is_empty() {
+                    nil()
+                } else {
+                    let ss = ss.iter().map(|d| self.type_(d));
+                    wrap_args("<", ">", ",", ss)
+                };
+                concats!(module_access.as_ref(), tys)
+            }
+            Type_::Ref(mut_, s) => {
+                let prefix = if *mut_ { "&mut " } else { "&" };
+                let s = self.type_(s.as_ref());
+                concats!(prefix, s)
+            }
+            Type_::Fun(args, ret) => {
+                let args = args.iter().map(|t| self.type_(t));
+                let args = wrap_args("(", "): ", ",", args);
+                let ret = self.type_(ret.as_ref());
+                args.append(ret)
+            }
+        }
+    }
+    fn type_list_(&self, tys: &[ast::Type]) -> Document {
+        let items = tys.iter().map(|d| self.type_(d)).intersperse(delim(","));
+        concat(items)
+    }
+
+    fn exp_(&self, exp: &ast::Exp) -> Document {
+        use ast::Exp_ as E;
+        match &exp.value {
+            E::Unit => "()".to_doc(),
+            E::Value(v) => v.to_doc(),
+            E::InferredNum(u) => u.to_doc(),
+            E::Move(v) => concats!("move ", v),
+            E::Copy(v) => concats!("copy ", v),
+            E::Name(ma, tys_opt) => {
+                let tys = if let Some(ss) = tys_opt {
+                    wrap_list("<", ">", ",", ss.iter().map(|s| self.type_(s)))
+                } else {
+                    nil()
+                };
+                nil().append(ma).append(tys)
+            }
+            E::Call(ma, tys_opt, rhs) => {
+                let tys = if let Some(ss) = tys_opt {
+                    wrap_list("<", ">", ",", ss.iter().map(|s| self.type_(s))).group()
+                } else {
+                    nil()
+                };
+                nil()
+                    .append(ma)
+                    .append(tys)
+                    .append(wrap_list(
+                        "(",
+                        ")",
+                        ",",
+                        rhs.value.iter().map(|e| self.exp_(e)),
+                    ))
+                    .group()
+            }
+            E::Pack(ma, tys_opt, fields) => {
+                let tys = if let Some(ss) = tys_opt {
+                    wrap_list("<", ">", ",", ss.iter().map(|s| self.type_(s)))
+                } else {
+                    nil()
+                };
+                // nil().append(ma).append(tys).append(
+                //     nil().append("{").append(line())
+                // )
+                let fields = fields
+                    .iter()
+                    .map(|(f, e)| concats!(f, ": ", self.exp_(e)))
+                    .intersperse(line());
+                let fields = concat(fields);
+                let fields = group(concats!("{", indent!(2, fields), line(), "}"));
+                concats!(ma, tys, fields)
+            }
+            E::IfElse(b, t, f_opt) => {
+                let b = self.exp_(b.as_ref());
+                let t = self.exp_(t.as_ref());
+                let f_opt = f_opt.as_ref().map(|f| self.exp_(f.as_ref()));
+
+                let if_part = "if "
+                    .to_doc()
+                    .append(nest(2, concats!(break_("(", "("), b)))
+                    .append(break_(") ", ") "))
+                    .append(t);
+                let else_part = if let Some(f) = f_opt {
+                    concats!(" else ", f)
+                } else {
+                    nil()
+                };
+                if_part.append(else_part)
+            }
+            E::While(b, e) => {
+                let b = self.exp_(b.as_ref());
+                let e = self.exp_(e.as_ref());
+                "while "
+                    .to_doc()
+                    .append(nest(2, break_("(", "(").append(b)))
+                    .append(break_(")", ")"))
+                    .append(e)
+            }
+            E::Loop(e) => {
+                let e = self.exp_(e.as_ref());
+                "loop ".to_doc().append(e)
+            }
+            E::Block(seq) => self.sequence_(seq),
+            E::Lambda(bs, e) => {
+                let bs = bs.value.iter().map(|b| self.bind_(b));
+                let bindlist = wrap_args("|", "|", ",", bs);
+                let e = self.exp_(e.as_ref());
+                concats!("fun ", bindlist, " ", e)
+            }
+            E::ExpList(es) => {
+                let es = es.iter().map(|e| self.exp_(e));
+                wrap_args("(", ")", ",", es)
+            }
+            E::Assign(lvalue, rhs) => {
+                let lvalue = self.exp_(lvalue.as_ref());
+                let rhs = self.exp_(rhs.as_ref());
+                concats!(lvalue, " = ", rhs)
+            }
+            E::Return(e) => {
+                let e = e.as_ref().map(|e| self.exp_(e.as_ref()));
+                "return".to_doc().append(if let Some(v) = e {
+                    concats!(" ", v)
+                } else {
+                    nil()
+                })
+            }
+            E::Abort(e) => {
+                let e = self.exp_(e.as_ref());
+                concats!("abort ", e)
+            }
+            E::Break => "break".to_doc(),
+            E::Continue => "continue".to_doc(),
+            E::Dereference(e) => {
+                let e = self.exp_(e.as_ref());
+                concats!("*", e)
+            }
+            E::UnaryExp(op, e) => {
+                let e = self.exp_(e.as_ref());
+                concats!(op, e)
+            }
+            E::BinopExp(l, op, r) => {
+                let l = self.exp_(l.as_ref());
+                let r = self.exp_(r.as_ref());
+                concats!(l, " ", op, " ", r)
+            }
+            E::Borrow(mut_, e) => {
+                let mut_sign = if *mut_ { "&mut " } else { "&" };
+                let e = self.exp_(e.as_ref());
+                concats!(mut_sign, e)
+            }
+            E::Dot(e, n) => {
+                let e = self.exp_(e.as_ref());
+                concats!(e, ".", n)
+            }
+            E::Cast(e, ty) => {
+                let e = self.exp_(e.as_ref());
+                let ty = self.type_(ty);
+                concats!("(", e, " as ", ty, ")")
+            }
+            E::Index(e, i) => {
+                let e = self.exp_(e.as_ref());
+                let i = self.exp_(i.as_ref());
+                concats!(e, "[", i, "]")
+            }
+            E::Annotate(e, ty) => {
+                let e = self.exp_(e.as_ref());
+                let ty = self.type_(ty);
+                concats!("(", e, ": ", ty, ")")
+            }
+            E::Spec(_s) => todo!(),
+            E::UnresolvedError => "_|_".to_doc(),
+        }
+    }
+
+    fn bind_(&self, bind: &ast::Bind) -> Document {
+        use ast::Bind_ as B;
+        match &bind.value {
+            B::Var(v) => v.to_doc(),
+            B::Unpack(ma, tys_opt, fields) => {
+                let tys_opt = if let Some(ss) = tys_opt {
+                    wrap_args("<", ">", ",", ss.into_iter().map(|s| self.type_(s)))
+                } else {
+                    nil()
+                };
+                let fields = concat(
+                    fields
+                        .iter()
+                        .map(|(f, b)| concats!(f, ": ", self.bind_(b), line())),
+                );
+                let fields = nest(2, "{".to_doc().append(line()).append(fields));
+                let fields = fields.append(line()).append("}");
+                ma.to_doc().append(tys_opt).append(fields)
+            }
+        }
+    }
+
+    fn sequence_(&self, sequence: &ast::Sequence) -> Document {
+        let (uses, items, _, exp) = sequence;
+        let no_uses = uses.is_empty();
+        let no_items = items.is_empty();
+        let sequences = uses
+            .into_iter()
+            .map(|u| self.use_(u))
+            .chain(items.iter().map(|i| self.sequence_item_(i)));
+
+        let body = if let Some(e) = exp.as_ref() {
+            concat(
+                sequences
+                    .chain(vec![e].into_iter().map(|e| self.exp_(e)))
+                    .intersperse(line()),
+            )
+        } else {
+            concat(sequences.intersperse(line()))
+        };
+        let line_or_break = if no_uses && no_items {
+            break_("", "")
+        } else {
+            line()
+        };
+
+        group(
+            "{".to_doc()
+                .append(nest(2, line_or_break.clone().append(body)))
+                .append(line_or_break)
+                .append("}"),
+        )
+    }
+
+    fn sequence_item_list(&self, item_list: &[ast::SequenceItem]) -> Document {
+        concat(
+            item_list
+                .iter()
+                .map(|s| self.sequence_item_(s))
+                .intersperse(line()),
+        )
+    }
+
+    fn sequence_item_(&self, item: &ast::SequenceItem) -> Document {
+        use ast::SequenceItem_ as S;
+        let doc = match &item.value {
+            S::Seq(e) => self.exp_(e.as_ref()),
+            S::Bind(bs, ty_opt, e) => {
+                let bs = if bs.value.len() == 1 {
+                    self.bind_(bs.value.first().unwrap())
+                } else {
+                    wrap_args("(", ")", ",", bs.value.iter().map(|b| self.bind_(b)))
+                };
+
+                let ty_opt = if let Some(ty) = ty_opt {
+                    self.type_(ty)
+                } else {
+                    nil()
+                };
+                let e = self.exp_(e.as_ref());
+                concats!("let ", bs, ty_opt, " = ", e)
+            }
+            S::Declare(bs, ty_opt) => {
+                let bs = if bs.value.len() == 1 {
+                    self.bind_(bs.value.first().unwrap())
+                } else {
+                    wrap_args("(", ")", ",", bs.value.iter().map(|b| self.bind_(b)))
+                };
+
+                let ty_opt = if let Some(ty) = ty_opt {
+                    self.type_(ty)
+                } else {
+                    nil()
+                };
+                concats!("let ", bs, ty_opt)
+            }
+        };
+        doc.append(";")
     }
 }
 
@@ -217,121 +650,6 @@ where
         .append(close)
 }
 
-impl Documentable for ast::Function {
-    fn to_doc(&self) -> Document {
-        let ast::Function {
-            visibility,
-            signature,
-            acquires,
-            name,
-            body,
-            ..
-        } = self;
-        let native_opt = if let ast::FunctionBody_::Native = &body.value {
-            "native ".to_doc()
-        } else {
-            nil()
-        };
-
-        concats!(visibility, native_opt, "fun ", name, signature, acquires, " ", body)
-    }
-}
-
-type AcquireList = Vec<ast::ModuleAccess>;
-impl Documentable for AcquireList {
-    fn to_doc(&self) -> Document {
-        if self.is_empty() {
-            return nil();
-        };
-        let acquires = wrap_args("", "", ",", self.iter().map(|ma| ma.to_doc()));
-        "acquires ".to_doc().append(acquires)
-    }
-}
-
-impl Documentable for ast::FunctionBody_ {
-    fn to_doc(&self) -> Document {
-        use ast::FunctionBody_ as B;
-        match self {
-            B::Native => ";".to_doc(),
-            B::Defined(s) => s.to_doc(),
-        }
-    }
-}
-
-impl Documentable for ast::FunctionVisibility {
-    fn to_doc(&self) -> Document {
-        use ast::FunctionVisibility as F;
-        match self {
-            F::Internal => nil(),
-            F::Public(_) => "public ".to_doc(),
-        }
-    }
-}
-impl Documentable for ast::FunctionSignature {
-    fn to_doc(&self) -> Document {
-        let ast::FunctionSignature {
-            type_parameters,
-            parameters,
-            return_type,
-        } = self;
-        // let type_parameters = TypeParameters(type_parameters.clone());
-        let type_items = wrap_list("<", ">", ",", type_parameters.iter());
-        let param_items = wrap_list(
-            "(",
-            ")",
-            ",",
-            parameters
-                .iter()
-                .map(|(n, t)| nil().append(n).append(": ").append(t)),
-        );
-
-        let ret = if let ast::Type_::Unit = &return_type.value {
-            nil()
-        } else {
-            concats!(":", return_type)
-        };
-        group! {
-            group!(type_items),
-            param_items,
-            ret
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct TypeParameters(pub Vec<(Name, ast::Kind)>);
-
-impl Documentable for TypeParameters {
-    fn to_doc(&self) -> Document {
-        if self.0.is_empty() {
-            nil()
-        } else {
-            let parameters = concat(
-                self.0
-                    .iter()
-                    .map(|p| p.to_doc())
-                    .intersperse(pretty::delim(",")),
-            );
-            break_("", "").append(parameters)
-            // wrap_args("<", ">", ",", self.0.iter().map(|p| p.to_doc()))
-        }
-    }
-}
-
-impl Documentable for (Name, ast::Kind) {
-    fn to_doc(&self) -> Document {
-        let (n, k) = self;
-        use ast::Kind_ as K;
-        let k = match k.value {
-            K::Unknown => nil(),
-            K::Resource => ": resource".to_doc(),
-            K::Affine => ": copyable".to_doc(),
-            K::Copyable => panic!("ICE 'copyable' kind constraint"),
-        };
-        concats!(n, k)
-    }
-}
-
 impl Documentable for ast::ModuleIdent_ {
     fn to_doc(&self) -> Document {
         Document::Text(format!("{}::{}", &self.address, &self.name.0.value))
@@ -347,291 +665,6 @@ impl Documentable for ast::ModuleAccess_ {
             M::QualifiedModuleAccess(m, n) => format!("{}::{}", m, n),
         };
         s.to_doc()
-    }
-}
-
-impl Documentable for Vec<ast::Use> {
-    fn to_doc(&self) -> Document {
-        concat(self.iter().map(|u| u.to_doc()).intersperse(line()))
-    }
-}
-
-impl Documentable for ast::Use {
-    fn to_doc(&self) -> Document {
-        fn use_member_(member_name: &Name, alias: Option<&Name>) -> Document {
-            let member = if let Some(n) = alias {
-                format!("{} as {}", member_name, n)
-            } else {
-                format!("{}", member_name)
-            };
-            member.to_doc()
-        }
-
-        let doc = "use ".to_doc();
-        match self {
-            ast::Use::Module(module_ident, opt_name) => doc
-                .append(&module_ident.0.value)
-                .append(if let Some(name) = opt_name {
-                    format!(" as {}", name).to_doc()
-                } else {
-                    nil()
-                })
-                .append(";"),
-            ast::Use::Members(module_indent, members) => {
-                let doc = concats!(doc, &module_indent.0.value, "::");
-                let doc = if members.len() == 1 {
-                    let (member_name, alias) = members.first().unwrap();
-                    concats!(doc, use_member_(member_name, alias.as_ref()))
-                } else if members.len() > 1 {
-                    let members = wrap_args(
-                        "{",
-                        "}",
-                        ",",
-                        members
-                            .into_iter()
-                            .map(|(name, alias)| use_member_(name, alias.as_ref())),
-                    );
-                    concats!(doc, members)
-                } else {
-                    nil()
-                };
-                concats!(doc, ";")
-            }
-        }
-    }
-}
-
-impl Documentable for ast::Constant {
-    fn to_doc(&self) -> Document {
-        let ast::Constant {
-            signature,
-            name,
-            value,
-            ..
-        } = self;
-        concats!("const ", &name.0, ": ", signature, " = ", value, ";")
-    }
-}
-
-impl Documentable for Vec<ast::Type> {
-    fn to_doc(&self) -> Document {
-        let items = self.iter().map(|d| d.to_doc()).intersperse(delim(","));
-        concat(items)
-    }
-}
-
-impl Documentable for ast::Type_ {
-    fn to_doc(&self) -> Document {
-        match self {
-            Type_::Unit => "()".to_doc(),
-            Type_::Multiple(ss) => wrap_args("(", ")", ",", ss.iter().map(|d| d.to_doc())),
-            Type_::Apply(module_access, ss) => {
-                let tys = if ss.is_empty() {
-                    nil()
-                } else {
-                    wrap_args("<", ">", ",", ss.iter().map(|t| t.to_doc()))
-                };
-                concats!(module_access.as_ref(), tys)
-            }
-            Type_::Ref(mut_, s) => {
-                let prefix = if *mut_ { "&mut " } else { "&" };
-                concats!(prefix, s.as_ref())
-            }
-            Type_::Fun(args, ret) => {
-                wrap_args("(", "): ", ",", args.iter().map(|t| t.to_doc())).append(ret.as_ref())
-            }
-        }
-    }
-}
-
-impl Documentable for ast::Exp_ {
-    fn to_doc(&self) -> Document {
-        use ast::Exp_ as E;
-        match self {
-            E::Unit => "()".to_doc(),
-            E::Value(v) => v.to_doc(),
-            E::InferredNum(u) => u.to_doc(),
-            E::Move(v) => concats!("move ", v),
-            E::Copy(v) => concats!("copy ", v),
-            E::Name(ma, tys_opt) => {
-                let tys = if let Some(ss) = tys_opt {
-                    wrap_list("<", ">", ",", ss.iter())
-                } else {
-                    nil()
-                };
-                nil().append(ma).append(tys)
-            }
-            E::Call(ma, tys_opt, rhs) => {
-                let tys = if let Some(ss) = tys_opt {
-                    wrap_list("<", ">", ",", ss.iter()).group()
-                } else {
-                    nil()
-                };
-                nil()
-                    .append(ma)
-                    .append(tys)
-                    .append(wrap_list("(", ")", ",", rhs.value.iter()))
-                    .group()
-            }
-            E::Pack(ma, tys_opt, fields) => {
-                let tys = if let Some(ss) = tys_opt {
-                    wrap_list("<", ">", ",", ss.iter())
-                } else {
-                    nil()
-                };
-                // nil().append(ma).append(tys).append(
-                //     nil().append("{").append(line())
-                // )
-                let fields = fields
-                    .iter()
-                    .map(|(f, e)| concats!(f, ": ", e))
-                    .intersperse(line());
-                let fields = concat(fields);
-                let fields = group(concats!("{", indent!(2, fields), line(), "}"));
-                concats!(ma, tys, fields)
-            }
-            E::IfElse(b, t, f_opt) => {
-                let if_part = "if "
-                    .to_doc()
-                    .append(nest(2, concats!(break_("(", "("), b.as_ref())))
-                    .append(break_(") ", ") "))
-                    .append(t.as_ref().to_doc());
-                let else_part = if let Some(f) = f_opt {
-                    concats!(" else ", f.as_ref())
-                } else {
-                    nil()
-                };
-                if_part.append(else_part)
-            }
-            E::While(b, e) => "while "
-                .to_doc()
-                .append(nest(2, break_("(", "(").append(b.to_doc())))
-                .append(break_(")", ")"))
-                .append(e.to_doc()),
-            E::Loop(e) => "loop ".to_doc().append(e.to_doc()),
-            E::Block(seq) => seq.to_doc(),
-            E::Lambda(bs, e) => {
-                let bindlist = wrap_args("|", "|", ",", bs.value.iter().map(|b| b.to_doc()));
-                concats!("fun ", bindlist, " ", e.as_ref())
-            }
-            E::ExpList(es) => wrap_args("(", ")", ",", es.iter().map(|e| e.to_doc())),
-            E::Assign(lvalue, rhs) => concats!(lvalue.as_ref(), " = ", rhs.as_ref()),
-            E::Return(e) => "return".to_doc().append(if let Some(v) = e {
-                concats!(" ", v.as_ref())
-            } else {
-                nil()
-            }),
-            E::Abort(e) => concats!("abort ", e.as_ref()),
-            E::Break => "break".to_doc(),
-            E::Continue => "continue".to_doc(),
-            E::Dereference(e) => concats!("*", e.as_ref()),
-            E::UnaryExp(op, e) => concats!(op, e.as_ref()),
-            E::BinopExp(l, op, r) => concats!(l.as_ref(), " ", op, " ", r.as_ref()),
-            E::Borrow(mut_, e) => {
-                let mut_sign = if *mut_ { "&mut " } else { "&" };
-                concats!(mut_sign, e.as_ref())
-            }
-            E::Dot(e, n) => concats!(e.as_ref(), ".", n),
-            E::Cast(e, ty) => concats!("(", e.as_ref(), " as ", ty, ")"),
-            E::Index(e, i) => concats!(e.as_ref(), "[", i.as_ref(), "]"),
-            E::Annotate(e, ty) => concats!("(", e.as_ref(), ": ", ty, ")"),
-            E::Spec(_s) => todo!(),
-            E::UnresolvedError => "_|_".to_doc(),
-        }
-    }
-}
-
-impl Documentable for ast::Sequence {
-    fn to_doc(&self) -> Document {
-        let (uses, items, _, exp) = self;
-        let no_uses = uses.is_empty();
-        let no_items = items.is_empty();
-        let sequences = uses
-            .into_iter()
-            .map(|u| u.to_doc())
-            .chain(items.iter().map(|i| i.to_doc()));
-
-        let body = if let Some(e) = exp.as_ref() {
-            concat(sequences.chain(vec![e.to_doc()]).intersperse(line()))
-        } else {
-            concat(sequences.intersperse(line()))
-        };
-        let line_or_break = if no_uses && no_items {
-            break_("", "")
-        } else {
-            line()
-        };
-
-        group(
-            "{".to_doc()
-                .append(nest(2, line_or_break.clone().append(body)))
-                .append(line_or_break)
-                .append("}"),
-        )
-    }
-}
-
-impl Documentable for Vec<ast::SequenceItem> {
-    fn to_doc(&self) -> Document {
-        concat(self.iter().map(|s| s.to_doc()).intersperse(line()))
-    }
-}
-
-impl Documentable for ast::SequenceItem_ {
-    fn to_doc(&self) -> Document {
-        use ast::SequenceItem_ as S;
-        let doc = match self {
-            S::Seq(e) => e.to_doc(),
-            S::Bind(bs, ty_opt, e) => {
-                let bs = if bs.value.len() == 1 {
-                    bs.value.first().unwrap().to_doc()
-                } else {
-                    wrap_args("(", ")", ",", bs.value.iter().map(|b| b.to_doc()))
-                };
-
-                let ty_opt = if let Some(ty) = ty_opt {
-                    ty.to_doc()
-                } else {
-                    nil()
-                };
-                concats!("let ", bs, ty_opt, " = ", e.as_ref())
-            }
-            S::Declare(bs, ty_opt) => {
-                let bs = if bs.value.len() == 1 {
-                    bs.value.first().unwrap().to_doc()
-                } else {
-                    wrap_args("(", ")", ",", bs.value.iter().map(|b| b.to_doc()))
-                };
-
-                let ty_opt = if let Some(ty) = ty_opt {
-                    ty.to_doc()
-                } else {
-                    nil()
-                };
-                concats!("let ", bs, ty_opt)
-            }
-        };
-        doc.append(";")
-    }
-}
-
-impl Documentable for ast::Bind_ {
-    fn to_doc(&self) -> Document {
-        use ast::Bind_ as B;
-        match self {
-            B::Var(v) => v.to_doc(),
-            B::Unpack(ma, tys_opt, fields) => {
-                let tys_opt = if let Some(ss) = tys_opt {
-                    wrap_args("<", ">", ",", ss.into_iter().map(|s| s.to_doc()))
-                } else {
-                    nil()
-                };
-                let fields = concat(fields.iter().map(|(f, b)| concats!(f, ": ", b, line())));
-                let fields = nest(2, "{".to_doc().append(line()).append(fields));
-                let fields = fields.append(line()).append("}");
-                ma.to_doc().append(tys_opt).append(fields)
-            }
-        }
     }
 }
 
