@@ -6,14 +6,17 @@ pub mod pretty;
 
 use crate::{
     lang_items::LangItem,
-    pretty::{break_, concat, delim, group, line, lines, nest, nil, Document, Documentable},
+    pretty::{
+        break_, concat, delim, force_break, group, line, lines, nest, nil, space, Document,
+        Documentable,
+    },
 };
 use codespan::Span;
 use itertools::Itertools;
 use move_ir_types::location::Spanned;
 use move_lang::{
     parser::{ast, ast::Type_},
-    shared::Name,
+    shared::{Address, Name},
     FileCommentMap,
 };
 use std::{any::Any, borrow::BorrowMut, cell::RefCell, collections::BTreeMap, rc::Rc};
@@ -53,7 +56,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub fn pop_doc_comments(&self, limit: usize) -> impl Iterator<Item = Comment<'a>> {
+    fn pop_doc_comments(&self, limit: usize) -> impl Iterator<Item = Comment<'a>> {
         self.inner.borrow_mut().pop_doc_comments(limit)
     }
 }
@@ -128,8 +131,51 @@ impl<'a> Formatter<'a> {
     pub fn definition(&self, expr: &ast::Definition) -> Document {
         match expr {
             ast::Definition::Script(s) => self.script(s),
+            ast::Definition::Module(m) => self.module(m),
+            ast::Definition::Address(_, addr, ms) => self.address_block(addr, ms),
             _ => todo!(),
         }
+    }
+
+    pub fn address_block(&self, addr: &Address, modules: &[ast::ModuleDefinition]) -> Document {
+        let header = "address ".to_doc().append(format!("{}", addr).to_doc());
+        let modules = concat(modules.iter().map(|m| self.module(m)).intersperse(lines(2)));
+
+        // no indent for address block
+        let body = "{"
+            .to_doc()
+            .append(line())
+            .append(modules)
+            .append(line())
+            .append("}");
+
+        group(header.append(" ").append(body))
+    }
+
+    pub fn module(&self, module: &ast::ModuleDefinition) -> Document {
+        use ast::ModuleMember as MM;
+        let header = concat(
+            vec!["module".to_doc(), module.name.to_doc(), "{".to_doc()]
+                .into_iter()
+                .intersperse(space()),
+        );
+
+        let items: Vec<_> = module
+            .members
+            .iter()
+            .map(|member| match member {
+                MM::Constant(c) => LangItem::Constant(c),
+                MM::Use(u) => LangItem::Use(u),
+                MM::Spec(s) => LangItem::Spec(s),
+                MM::Struct(s) => LangItem::Struct(s),
+                MM::Function(f) => LangItem::Func(f),
+            })
+            .collect();
+
+        let body = self.lang_items_(items.iter());
+        let body = nest(INDENT, body.surround(line(), nil()));
+
+        group(header.append(body).append(line()).append("}"))
     }
 
     pub fn script(&self, script: &ast::Script) -> Document {
@@ -148,8 +194,19 @@ impl<'a> Formatter<'a> {
         items.sort_by_key(|i| i.loc().span().start());
 
         let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
+        let body = self.lang_items_(items.iter());
+        let body = "script "
+            .to_doc()
+            .append("{")
+            .append(indent!(2, body))
+            .append(line())
+            .append("}");
 
-        let mut peekable_items = items.iter().peekable();
+        comments.append(body)
+    }
+
+    fn lang_items_<'b>(&self, items: impl Iterator<Item = &'b LangItem<'b>>) -> Document {
+        let mut peekable_items = items.peekable();
         let mut body = nil();
         while let Some(item) = peekable_items.next() {
             body = body.append(self.lang_item(item));
@@ -173,24 +230,70 @@ impl<'a> Formatter<'a> {
                 }
             }
         }
-        body = "script "
-            .to_doc()
-            .append("{")
-            .append(indent!(2, body))
-            .append(line())
-            .append("}");
-
-        comments.append(body)
+        body
     }
 
-    pub fn lang_item(&self, item: &LangItem) -> Document {
+    fn lang_item(&self, item: &LangItem) -> Document {
         match item {
-            LangItem::Func(f) => self.fn_(f),
+            LangItem::Func(f) => self.documented_fun(f),
             LangItem::Constant(c) => self.documented_constant(c),
             LangItem::Use(u) => self.use_(u),
-            LangItem::Struct(s) => todo!("impl struct"),
-            LangItem::Spec(s) => todo!("impl spec"),
+            LangItem::Struct(s) => self.struct_(s),
+            LangItem::Spec(s) => nil(),
         }
+    }
+
+    fn struct_(&self, s: &ast::StructDefinition) -> Document {
+        use ast::{StructDefinition as S, StructFields as SF};
+        let S {
+            resource_opt,
+            name,
+            type_parameters,
+            fields,
+            loc: _,
+        } = s;
+
+        let header = {
+            let mut parts = vec![];
+            if let SF::Native(_) = fields {
+                parts.push("native".to_doc());
+            }
+            if let Some(_) = resource_opt {
+                parts.push("resource".to_doc());
+            }
+            parts.push("struct".to_doc());
+            parts.push(name.to_doc());
+
+            concat(parts.into_iter().intersperse(space()))
+        };
+        let type_parameters = if type_parameters.is_empty() {
+            nil()
+        } else {
+            wrap_list(
+                "<",
+                ">",
+                ",",
+                type_parameters.iter().map(|p| self.type_parameter_(p)),
+            )
+        };
+
+        let body = match fields {
+            SF::Native(_) => ";".to_doc(),
+            SF::Defined(fs) => {
+                let fs = fs.iter().map(|f| self.struct_field_(f));
+
+                // force break struct def
+                space().append(wrap_list("{", "}", ",", fs).append(force_break()))
+            }
+        };
+
+        group(header.append(type_parameters).append(body))
+    }
+
+    fn struct_field_(&self, f: &(ast::Field, ast::Type)) -> Document {
+        let (n, t) = f;
+        let t = self.type_(t);
+        nil().append(n).append(": ").append(t)
     }
 
     fn use_(&self, use_stmt: &ast::Use) -> Document {
@@ -236,8 +339,11 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn fn_(&self, function: &ast::Function) -> Document {
+    fn documented_fun(&self, function: &ast::Function) -> Document {
         let comments = comments(self.pop_doc_comments(function.loc.span().start().to_usize()));
+        comments.append(self.fun_(function))
+    }
+    fn fun_(&self, function: &ast::Function) -> Document {
         let ast::Function {
             visibility,
             signature,
@@ -268,7 +374,7 @@ impl<'a> Formatter<'a> {
             .append(" ")
             .append(self.fn_body_(body));
 
-        comments.append(func)
+        func
     }
 
     fn fn_signature_(&self, fn_signature: &ast::FunctionSignature) -> Document {
@@ -277,8 +383,13 @@ impl<'a> Formatter<'a> {
             parameters,
             return_type,
         } = fn_signature;
-        let type_parameters = type_parameters.iter().map(|t| self.fn_type_parameter_(t));
-        let type_items = wrap_list("<", ">", ",", type_parameters);
+        let type_items = if type_parameters.is_empty() {
+            nil()
+        } else {
+            let type_parameters = type_parameters.iter().map(|t| self.type_parameter_(t));
+            wrap_list("<", ">", ",", type_parameters)
+        };
+
         let param_items = wrap_list(
             "(",
             ")",
@@ -298,7 +409,7 @@ impl<'a> Formatter<'a> {
             ret
         }
     }
-    fn fn_type_parameter_(&self, type_parameter: &(Name, ast::Kind)) -> Document {
+    fn type_parameter_(&self, type_parameter: &(Name, ast::Kind)) -> Document {
         let (n, k) = type_parameter;
         use ast::Kind_ as K;
         let k = match k.value {
@@ -427,11 +538,11 @@ impl<'a> Formatter<'a> {
                 // )
                 let fields = fields
                     .iter()
-                    .map(|(f, e)| concats!(f, ": ", self.exp_(e)))
+                    .map(|p| self.pack_field_(p))
                     .intersperse(line());
                 let fields = concat(fields);
                 let fields = group(concats!("{", indent!(2, fields), line(), "}"));
-                concats!(ma, tys, fields)
+                concats!(ma, tys, " ", fields)
             }
             E::IfElse(b, t, f_opt) => {
                 let b = self.exp_(b.as_ref());
@@ -532,6 +643,18 @@ impl<'a> Formatter<'a> {
             }
             E::Spec(_s) => todo!(),
             E::UnresolvedError => "_|_".to_doc(),
+        }
+    }
+
+    fn pack_field_(&self, pack: &(ast::Field, ast::Exp)) -> Document {
+        let (f, e) = pack;
+        let f = f.to_doc();
+        let exp = self.exp_(e);
+        // short hand for struct pack
+        if &exp == &f {
+            f
+        } else {
+            f.append(": ").append(exp)
         }
     }
 

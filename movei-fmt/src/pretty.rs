@@ -267,22 +267,31 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: Vector<(isize, 
     }
 }
 
+#[inline]
 pub fn nil() -> Document {
     Document::Nil
 }
 
+#[inline]
+pub fn space() -> Document {
+    " ".to_doc()
+}
+#[inline]
 pub fn line() -> Document {
     Document::Line(1)
 }
 
+#[inline]
 pub fn lines(i: usize) -> Document {
     Document::Line(i)
 }
 
+#[inline]
 pub fn force_break() -> Document {
     Document::ForceBreak
 }
 
+#[inline]
 pub fn break_(broken: &str, unbroken: &str) -> Document {
     Document::Break {
         broken: broken.to_string(),
@@ -290,6 +299,7 @@ pub fn break_(broken: &str, unbroken: &str) -> Document {
     }
 }
 
+#[inline]
 pub fn delim(d: &str) -> Document {
     Document::Break {
         broken: d.to_string(),
@@ -297,42 +307,52 @@ pub fn delim(d: &str) -> Document {
     }
 }
 
+#[inline]
 pub fn flex_group(ident: isize, d: impl Documentable) -> Document {
     Document::FlexGroup(ident, Box::new(d.to_doc()))
 }
 
+#[inline]
 pub fn group(d: impl Documentable) -> Document {
     Document::Group(Box::new(d.to_doc()))
 }
 
+#[inline]
 pub fn nest(indent: isize, d: impl Documentable) -> Document {
     d.to_doc().nest(indent)
 }
 
 impl Document {
+    #[inline]
     pub fn group(self) -> Document {
         Document::Group(Box::new(self))
     }
 
+    #[inline]
     pub fn flex_group(self, indent: isize) -> Document {
         Document::FlexGroup(indent, Box::new(self))
     }
 
+    #[inline]
     pub fn flex_break(self) -> Document {
         Document::FlexBreak(Box::new(self))
     }
 
+    #[inline]
     pub fn nest(self, indent: isize) -> Document {
         Document::Nest(indent, Box::new(self))
     }
 
+    #[inline]
     pub fn nest_current(self) -> Document {
         Document::NestCurrent(Box::new(self))
     }
 
+    #[inline]
     pub fn breakable_append(self, x: impl Documentable) -> Document {
         self.append(break_("", "")).append(x)
     }
+    #[inline]
     pub fn append(self, x: impl Documentable) -> Document {
         let x = x.to_doc();
         if matches!(x, Document::Nil) {
@@ -348,6 +368,7 @@ impl Document {
         format(limit, self)
     }
 
+    #[inline]
     pub fn surround(self, open: impl Documentable, closed: impl Documentable) -> Document {
         open.to_doc().append(self).append(closed)
     }

@@ -12,15 +12,17 @@ pub fn run(arg: FmtArgs) -> Result<()> {
     let fname: &'static str = Box::leak(Box::new(fname));
     let parsed_result =
         strip_comments_and_verify(fname, content.as_str()).and_then(|(stripped, comment_map)| {
-            parser::syntax::parse_file_string(fname, stripped.as_str(), comment_map)
+            parser::syntax::parse_file_string(fname, stripped.as_str(), comment_map.clone())
+                .map(|(d, c)| (d, comment_map))
         });
     // TODO: strip comment
     match parsed_result {
-        Ok((defs, _comments)) => {
+        Ok((defs, comments)) => {
             match defs.first() {
                 None => bail!("source code has no definitions"),
                 Some(def) => {
-                    let doc = Formatter::definition(def);
+                    let formatter = Formatter::new(content.as_str(), comments);
+                    let doc = formatter.definition(def);
                     let output = pretty::format(width as isize, doc);
                     println!("{}", output);
                 }
