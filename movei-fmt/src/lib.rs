@@ -1,8 +1,13 @@
 #[macro_use]
 extern crate im;
+
+mod lang_items;
 pub mod pretty;
 
-use crate::pretty::{break_, concat, delim, group, line, lines, nest, nil, Document, Documentable};
+use crate::{
+    lang_items::LangItem,
+    pretty::{break_, concat, delim, group, line, lines, nest, nil, Document, Documentable},
+};
 use codespan::Span;
 use itertools::Itertools;
 use move_ir_types::location::Spanned;
@@ -133,27 +138,42 @@ impl<'a> Formatter<'a> {
             uses,
             constants,
             function,
-            specs: _,
+            specs,
         } = script;
+        let mut items = Vec::with_capacity(uses.len() + constants.len() + 1 + specs.len());
+        items.extend(uses.iter().map(LangItem::Use));
+        items.extend(constants.iter().map(LangItem::Constant));
+        items.push(LangItem::Func(function));
+        items.extend(specs.iter().map(LangItem::Spec));
+        items.sort_by_key(|i| i.loc().span().start());
+
         let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
 
-        let uses = concat(uses.iter().map(|u| self.use_(u)).intersperse(line()));
-
-        let consts = concat(
-            constants
-                .iter()
-                .map(|c| self.documented_constant(c))
-                .intersperse(line()),
-        );
-
-        let func = self.fn_(function);
-        let body = {
-            let userful_items = vec![uses, consts, func]
-                .into_iter()
-                .filter(|d| !matches!(d, Document::Nil));
-            concat(userful_items.intersperse(lines(2)))
-        };
-        let body = "script "
+        let mut peekable_items = items.iter().peekable();
+        let mut body = nil();
+        while let Some(item) = peekable_items.next() {
+            body = body.append(self.lang_item(item));
+            if let Some(after) = peekable_items.peek() {
+                match (item, after) {
+                    (LangItem::Use(_), LangItem::Use(_)) => {
+                        body = body.append(lines(1));
+                    }
+                    (LangItem::Use(_), _) => {
+                        body = body.append(lines(2));
+                    }
+                    (LangItem::Constant(_), LangItem::Constant(_)) => {
+                        body = body.append(lines(1));
+                    }
+                    (LangItem::Constant(_), _) => {
+                        body = body.append(lines(2));
+                    }
+                    _ => {
+                        body = body.append(lines(2));
+                    }
+                }
+            }
+        }
+        body = "script "
             .to_doc()
             .append("{")
             .append(indent!(2, body))
@@ -161,6 +181,16 @@ impl<'a> Formatter<'a> {
             .append("}");
 
         comments.append(body)
+    }
+
+    pub fn lang_item(&self, item: &LangItem) -> Document {
+        match item {
+            LangItem::Func(f) => self.fn_(f),
+            LangItem::Constant(c) => self.documented_constant(c),
+            LangItem::Use(u) => self.use_(u),
+            LangItem::Struct(s) => todo!("impl struct"),
+            LangItem::Spec(s) => todo!("impl spec"),
+        }
     }
 
     fn use_(&self, use_stmt: &ast::Use) -> Document {
