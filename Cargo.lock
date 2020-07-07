@@ -2080,6 +2080,7 @@ dependencies = [
  "codespan 0.9.5",
  "im",
  "itertools",
+ "log 0.4.8",
  "move-ir-types",
  "move-lang",
 ]

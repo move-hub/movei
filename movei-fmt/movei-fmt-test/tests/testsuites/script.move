@@ -1,5 +1,6 @@
 //! new-fmt
 //! width: 31
+//! indent: 2
 script {
   use 0x1::Debug;
 
@@ -10,6 +11,7 @@ script {
 
 //! new-fmt
 //! width: 25
+//! indent: 2
 script {
   use 0x1::Debug;
 

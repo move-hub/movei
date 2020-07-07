@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate im;
+#[macro_use]
+extern crate log;
 
 mod lang_items;
 pub mod pretty;
@@ -13,13 +15,13 @@ use crate::{
 };
 use codespan::Span;
 use itertools::Itertools;
-use move_ir_types::location::Spanned;
+use move_ir_types::location::{Loc, Spanned};
 use move_lang::{
     parser::{ast, ast::Type_},
-    shared::{Address, Name},
+    shared::{Address, Identifier, Name},
     FileCommentMap,
 };
-use std::{any::Any, borrow::BorrowMut, cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::cell::RefCell;
 
 struct Comment<'a> {
     pub span: Span,
@@ -32,6 +34,7 @@ pub enum CommentType {
 }
 
 impl<'a> Comment<'a> {
+    #[allow(unused)]
     pub fn comment_type(&self) -> CommentType {
         if self.content.starts_with("//") {
             return CommentType::Line;
@@ -45,19 +48,25 @@ impl<'a> Comment<'a> {
 
 pub struct Formatter<'a> {
     inner: RefCell<Inner<'a>>,
+    indent: isize,
 }
 
 impl<'a> Formatter<'a> {
-    pub fn new(source: &'a str, comment_map: FileCommentMap) -> Self {
+    pub fn new(source: &'a str, comment_map: FileCommentMap, indent: usize) -> Self {
         let inner = Inner::new(source, comment_map);
 
         Self {
             inner: RefCell::new(inner),
+            indent: indent as isize,
         }
     }
 
     fn pop_doc_comments(&self, limit: usize) -> impl Iterator<Item = Comment<'a>> {
         self.inner.borrow_mut().pop_doc_comments(limit)
+    }
+
+    pub fn indent(&self) -> isize {
+        self.indent
     }
 }
 
@@ -94,10 +103,8 @@ impl<'a> Inner<'a> {
     }
 }
 
-const INDENT: isize = 2isize;
-
 macro_rules! indent {
-    ($n:literal, $doc:expr) => {
+    ($n:expr, $doc:expr) => {
         pretty::line()
             .append(Document::ForceBreak)
             .append($doc)
@@ -113,12 +120,6 @@ macro_rules! indent {
 //     }};
 // }
 
-macro_rules! group {
-    ($($doc:expr),+) => {
-        Document::Nil$(.append($doc))+.group()
-    };
-}
-
 macro_rules! concats {
     ($($doc:expr),*) => {{
         Document::Nil$(
@@ -132,12 +133,18 @@ impl<'a> Formatter<'a> {
         match expr {
             ast::Definition::Script(s) => self.script(s),
             ast::Definition::Module(m) => self.module(m),
-            ast::Definition::Address(_, addr, ms) => self.address_block(addr, ms),
-            _ => todo!(),
+            ast::Definition::Address(loc, addr, ms) => self.address_block(loc, addr, ms),
         }
     }
 
-    pub fn address_block(&self, addr: &Address, modules: &[ast::ModuleDefinition]) -> Document {
+    pub fn address_block(
+        &self,
+        loc: &Loc,
+        addr: &Address,
+        modules: &[ast::ModuleDefinition],
+    ) -> Document {
+        let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
+
         let header = "address ".to_doc().append(format!("{}", addr).to_doc());
         let modules = concat(modules.iter().map(|m| self.module(m)).intersperse(lines(2)));
 
@@ -149,11 +156,14 @@ impl<'a> Formatter<'a> {
             .append(line())
             .append("}");
 
-        group(header.append(" ").append(body))
+        let address_block = group("address_block".to_string(), header.append(" ").append(body));
+        comments.append(address_block)
     }
 
     pub fn module(&self, module: &ast::ModuleDefinition) -> Document {
         use ast::ModuleMember as MM;
+        let module_comments = comments(self.pop_doc_comments(module.loc.span().start().to_usize()));
+
         let header = concat(
             vec!["module".to_doc(), module.name.to_doc(), "{".to_doc()]
                 .into_iter()
@@ -173,14 +183,18 @@ impl<'a> Formatter<'a> {
             .collect();
 
         let body = self.lang_items_(items.iter());
-        let body = nest(INDENT, body.surround(line(), nil()));
+        let body = nest(self.indent, body.surround(line(), nil()));
 
-        group(header.append(body).append(line()).append("}"))
+        let module = group(
+            "module".to_string(),
+            header.append(body).append(line()).append("}"),
+        );
+        module_comments.append(module)
     }
 
     pub fn script(&self, script: &ast::Script) -> Document {
         let ast::Script {
-            loc: loc,
+            loc,
             uses,
             constants,
             function,
@@ -198,7 +212,7 @@ impl<'a> Formatter<'a> {
         let body = "script "
             .to_doc()
             .append("{")
-            .append(indent!(2, body))
+            .append(indent!(self.indent, body))
             .append(line())
             .append("}");
 
@@ -209,7 +223,9 @@ impl<'a> Formatter<'a> {
         let mut peekable_items = items.peekable();
         let mut body = nil();
         while let Some(item) = peekable_items.next() {
-            body = body.append(self.lang_item(item));
+            let item_comments =
+                comments(self.pop_doc_comments(item.loc().span().start().to_usize()));
+            body = body.append(item_comments).append(self.lang_item(item));
             if let Some(after) = peekable_items.peek() {
                 match (item, after) {
                     (LangItem::Use(_), LangItem::Use(_)) => {
@@ -235,11 +251,11 @@ impl<'a> Formatter<'a> {
 
     fn lang_item(&self, item: &LangItem) -> Document {
         match item {
-            LangItem::Func(f) => self.documented_fun(f),
-            LangItem::Constant(c) => self.documented_constant(c),
+            LangItem::Func(f) => self.fun_(f),
+            LangItem::Constant(c) => self.constant_(c),
             LangItem::Use(u) => self.use_(u),
             LangItem::Struct(s) => self.struct_(s),
-            LangItem::Spec(s) => nil(),
+            LangItem::Spec(_s) => nil(),
         }
     }
 
@@ -273,6 +289,7 @@ impl<'a> Formatter<'a> {
                 "<",
                 ">",
                 ",",
+                self.indent,
                 type_parameters.iter().map(|p| self.type_parameter_(p)),
             )
         };
@@ -280,14 +297,27 @@ impl<'a> Formatter<'a> {
         let body = match fields {
             SF::Native(_) => ";".to_doc(),
             SF::Defined(fs) => {
-                let fs = fs.iter().map(|f| self.struct_field_(f));
-
-                // force break struct def
-                space().append(wrap_list("{", "}", ",", fs).append(force_break()))
+                if fs.is_empty() {
+                    " {}".to_doc()
+                } else {
+                    let fs = fs.iter().map(|f| {
+                        let field_comments =
+                            comments(self.pop_doc_comments(f.0.loc().span().start().to_usize()));
+                        field_comments.append(self.struct_field_(f))
+                    });
+                    let fs = concat(fs.intersperse(",".to_doc().append(line())));
+                    line()
+                        .append(fs)
+                        .nest(self.indent)
+                        .surround(" {", line().append("}"))
+                }
             }
         };
 
-        group(header.append(type_parameters).append(body))
+        group(
+            "struct".to_string(),
+            header.append(type_parameters).append(body),
+        )
     }
 
     fn struct_field_(&self, f: &(ast::Field, ast::Type)) -> Document {
@@ -326,6 +356,7 @@ impl<'a> Formatter<'a> {
                         "{",
                         "}",
                         ",",
+                        self.indent,
                         members
                             .into_iter()
                             .map(|(name, alias)| use_member_(name, alias.as_ref())),
@@ -339,10 +370,6 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn documented_fun(&self, function: &ast::Function) -> Document {
-        let comments = comments(self.pop_doc_comments(function.loc.span().start().to_usize()));
-        comments.append(self.fun_(function))
-    }
     fn fun_(&self, function: &ast::Function) -> Document {
         let ast::Function {
             visibility,
@@ -374,7 +401,7 @@ impl<'a> Formatter<'a> {
             .append(" ")
             .append(self.fn_body_(body));
 
-        func
+        func.group("func".to_string())
     }
 
     fn fn_signature_(&self, fn_signature: &ast::FunctionSignature) -> Document {
@@ -387,13 +414,14 @@ impl<'a> Formatter<'a> {
             nil()
         } else {
             let type_parameters = type_parameters.iter().map(|t| self.type_parameter_(t));
-            wrap_list("<", ">", ",", type_parameters)
+            wrap_list("<", ">", ",", self.indent, type_parameters)
         };
 
         let param_items = wrap_list(
             "(",
             ")",
             ",",
+            self.indent,
             parameters.iter().map(|p| self.fn_parameter_(p)),
         );
 
@@ -401,11 +429,11 @@ impl<'a> Formatter<'a> {
             nil()
         } else {
             let return_type = self.type_(return_type);
-            concats!(":", return_type)
+            concats!(": ", return_type)
         };
-        group! {
-            group!(type_items),
-            param_items,
+        concats! {
+            type_items.flex_break("type_parameters".to_string()),
+            param_items.flex_break("parameters".to_string()),
             ret
         }
     }
@@ -430,7 +458,13 @@ impl<'a> Formatter<'a> {
         if acquires.is_empty() {
             return nil();
         };
-        let acquires = wrap_args("", "", ",", acquires.iter().map(|ma| ma.to_doc()));
+        let acquires = wrap_list(
+            "",
+            "",
+            ",",
+            self.indent,
+            acquires.iter().map(|ma| ma.to_doc()),
+        );
         "acquires ".to_doc().append(acquires)
     }
 
@@ -440,12 +474,6 @@ impl<'a> Formatter<'a> {
             B::Native => ";".to_doc(),
             B::Defined(s) => self.sequence_(s),
         }
-    }
-
-    fn documented_constant(&self, constant: &ast::Constant) -> Document {
-        let loc = constant.loc;
-        let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
-        comments.append(self.constant_(constant))
     }
 
     fn constant_(&self, constant: &ast::Constant) -> Document {
@@ -465,16 +493,19 @@ impl<'a> Formatter<'a> {
             Type_::Unit => "()".to_doc(),
             Type_::Multiple(ss) => {
                 let ss = ss.iter().map(|d| self.type_(d));
-                wrap_args("(", ")", ",", ss)
+                wrap_list("(", ")", ",", self.indent, ss).flex_break("tuple_type".to_string())
             }
             Type_::Apply(module_access, ss) => {
                 let tys = if ss.is_empty() {
                     nil()
                 } else {
                     let ss = ss.iter().map(|d| self.type_(d));
-                    wrap_args("<", ">", ",", ss)
+                    wrap_list("<", ">", ",", self.indent, ss)
                 };
-                concats!(module_access.as_ref(), tys)
+                group(
+                    "apply_type".to_string(),
+                    concats!(module_access.as_ref(), tys),
+                )
             }
             Type_::Ref(mut_, s) => {
                 let prefix = if *mut_ { "&mut " } else { "&" };
@@ -483,12 +514,14 @@ impl<'a> Formatter<'a> {
             }
             Type_::Fun(args, ret) => {
                 let args = args.iter().map(|t| self.type_(t));
-                let args = wrap_args("(", "): ", ",", args);
+                let args = wrap_list("|", "|: ", ",", self.indent, args);
                 let ret = self.type_(ret.as_ref());
                 args.append(ret)
             }
         }
     }
+
+    #[allow(unused)]
     fn type_list_(&self, tys: &[ast::Type]) -> Document {
         let items = tys.iter().map(|d| self.type_(d)).intersperse(delim(","));
         concat(items)
@@ -504,7 +537,7 @@ impl<'a> Formatter<'a> {
             E::Copy(v) => concats!("copy ", v),
             E::Name(ma, tys_opt) => {
                 let tys = if let Some(ss) = tys_opt {
-                    wrap_list("<", ">", ",", ss.iter().map(|s| self.type_(s)))
+                    wrap_list("<", ">", ",", self.indent, ss.iter().map(|s| self.type_(s)))
                 } else {
                     nil()
                 };
@@ -512,7 +545,8 @@ impl<'a> Formatter<'a> {
             }
             E::Call(ma, tys_opt, rhs) => {
                 let tys = if let Some(ss) = tys_opt {
-                    wrap_list("<", ">", ",", ss.iter().map(|s| self.type_(s))).group()
+                    wrap_list("<", ">", ",", self.indent, ss.iter().map(|s| self.type_(s)))
+                        .group("type_arguments".to_string())
                 } else {
                     nil()
                 };
@@ -523,13 +557,14 @@ impl<'a> Formatter<'a> {
                         "(",
                         ")",
                         ",",
+                        self.indent,
                         rhs.value.iter().map(|e| self.exp_(e)),
                     ))
-                    .group()
+                    .group("call_expression".to_string())
             }
             E::Pack(ma, tys_opt, fields) => {
                 let tys = if let Some(ss) = tys_opt {
-                    wrap_list("<", ">", ",", ss.iter().map(|s| self.type_(s)))
+                    wrap_list("<", ">", ",", self.indent, ss.iter().map(|s| self.type_(s)))
                 } else {
                     nil()
                 };
@@ -541,7 +576,10 @@ impl<'a> Formatter<'a> {
                     .map(|p| self.pack_field_(p))
                     .intersperse(line());
                 let fields = concat(fields);
-                let fields = group(concats!("{", indent!(2, fields), line(), "}"));
+                let fields = group(
+                    "pack_fields".to_string(),
+                    concats!("{", indent!(self.indent, fields), line(), "}"),
+                );
                 concats!(ma, tys, " ", fields)
             }
             E::IfElse(b, t, f_opt) => {
@@ -551,7 +589,7 @@ impl<'a> Formatter<'a> {
 
                 let if_part = "if "
                     .to_doc()
-                    .append(nest(2, concats!(break_("(", "("), b)))
+                    .append(nest(self.indent, concats!(break_("(", "("), b)))
                     .append(break_(") ", ") "))
                     .append(t);
                 let else_part = if let Some(f) = f_opt {
@@ -566,7 +604,7 @@ impl<'a> Formatter<'a> {
                 let e = self.exp_(e.as_ref());
                 "while "
                     .to_doc()
-                    .append(nest(2, break_("(", "(").append(b)))
+                    .append(nest(self.indent, break_("(", "(").append(b)))
                     .append(break_(")", ")"))
                     .append(e)
             }
@@ -577,13 +615,13 @@ impl<'a> Formatter<'a> {
             E::Block(seq) => self.sequence_(seq),
             E::Lambda(bs, e) => {
                 let bs = bs.value.iter().map(|b| self.bind_(b));
-                let bindlist = wrap_args("|", "|", ",", bs);
+                let bindlist = wrap_args("|", "|", ",", self.indent, bs);
                 let e = self.exp_(e.as_ref());
                 concats!("fun ", bindlist, " ", e)
             }
             E::ExpList(es) => {
                 let es = es.iter().map(|e| self.exp_(e));
-                wrap_args("(", ")", ",", es)
+                wrap_args("(", ")", ",", self.indent, es)
             }
             E::Assign(lvalue, rhs) => {
                 let lvalue = self.exp_(lvalue.as_ref());
@@ -664,7 +702,13 @@ impl<'a> Formatter<'a> {
             B::Var(v) => v.to_doc(),
             B::Unpack(ma, tys_opt, fields) => {
                 let tys_opt = if let Some(ss) = tys_opt {
-                    wrap_args("<", ">", ",", ss.into_iter().map(|s| self.type_(s)))
+                    wrap_args(
+                        "<",
+                        ">",
+                        ",",
+                        self.indent,
+                        ss.into_iter().map(|s| self.type_(s)),
+                    )
                 } else {
                     nil()
                 };
@@ -673,7 +717,7 @@ impl<'a> Formatter<'a> {
                         .iter()
                         .map(|(f, b)| concats!(f, ": ", self.bind_(b), line())),
                 );
-                let fields = nest(2, "{".to_doc().append(line()).append(fields));
+                let fields = nest(self.indent, "{".to_doc().append(line()).append(fields));
                 let fields = fields.append(line()).append("}");
                 ma.to_doc().append(tys_opt).append(fields)
             }
@@ -682,12 +726,16 @@ impl<'a> Formatter<'a> {
 
     fn sequence_(&self, sequence: &ast::Sequence) -> Document {
         let (uses, items, _, exp) = sequence;
-        let no_uses = uses.is_empty();
-        let no_items = items.is_empty();
+        // let no_uses = uses.is_empty();
+        // let no_items = items.is_empty();
         let sequences = uses
             .into_iter()
             .map(|u| self.use_(u))
-            .chain(items.iter().map(|i| self.sequence_item_(i)));
+            .chain(items.iter().map(|i| {
+                // TODO: fix regular comments
+                let _ = self.pop_doc_comments(i.loc.span().start().to_usize());
+                self.sequence_item_(i)
+            }));
 
         let body = if let Some(e) = exp.as_ref() {
             concat(
@@ -698,20 +746,23 @@ impl<'a> Formatter<'a> {
         } else {
             concat(sequences.intersperse(line()))
         };
-        let line_or_break = if no_uses && no_items {
-            break_("", "")
-        } else {
-            line()
-        };
-
-        group(
-            "{".to_doc()
-                .append(nest(2, line_or_break.clone().append(body)))
-                .append(line_or_break)
-                .append("}"),
-        )
+        // let line_or_break = if no_uses && no_items {
+        //     break_("", "")
+        // } else {
+        //     line()
+        // };
+        break_("{", "{")
+            .to_doc()
+            .append(body)
+            .nest(self.indent)
+            .append(break_("", ""))
+            .append("}")
+        // "{".to_doc()
+        //     .append(body.flex_group("sequence_body".to_string(), INDENT))
+        //     .append("}")
     }
 
+    #[allow(unused)]
     fn sequence_item_list(&self, item_list: &[ast::SequenceItem]) -> Document {
         concat(
             item_list
@@ -729,7 +780,13 @@ impl<'a> Formatter<'a> {
                 let bs = if bs.value.len() == 1 {
                     self.bind_(bs.value.first().unwrap())
                 } else {
-                    wrap_args("(", ")", ",", bs.value.iter().map(|b| self.bind_(b)))
+                    wrap_args(
+                        "(",
+                        ")",
+                        ",",
+                        self.indent,
+                        bs.value.iter().map(|b| self.bind_(b)),
+                    )
                 };
 
                 let ty_opt = if let Some(ty) = ty_opt {
@@ -744,7 +801,13 @@ impl<'a> Formatter<'a> {
                 let bs = if bs.value.len() == 1 {
                     self.bind_(bs.value.first().unwrap())
                 } else {
-                    wrap_args("(", ")", ",", bs.value.iter().map(|b| self.bind_(b)))
+                    wrap_args(
+                        "(",
+                        ")",
+                        ",",
+                        self.indent,
+                        bs.value.iter().map(|b| self.bind_(b)),
+                    )
                 };
 
                 let ty_opt = if let Some(ty) = ty_opt {
@@ -768,7 +831,7 @@ fn comments<'a>(items: impl Iterator<Item = Comment<'a>>) -> Document {
     concat(items.map(|i| i.content.to_doc()).intersperse(line())).append(line())
 }
 
-pub fn wrap_args<I>(open: &str, close: &str, delim: &str, args: I) -> Document
+pub fn wrap_args<I>(open: &str, close: &str, delim: &str, indent: isize, args: I) -> Document
 where
     I: Iterator<Item = Document>,
 {
@@ -781,13 +844,19 @@ where
     //     .append(close.to_doc())
     break_(open, open)
         .append(concat(args.intersperse(pretty::delim(delim))))
-        .nest(INDENT)
+        .nest(indent)
         .append(break_(delim, ""))
         .append(close)
-        .group()
+        .group("wrap_args".to_string())
 }
 
-pub fn wrap_list<I, D: Documentable>(open: &str, close: &str, delim: &str, args: I) -> Document
+pub fn wrap_list<I, D: Documentable>(
+    open: &str,
+    close: &str,
+    delim: &str,
+    indent: isize,
+    args: I,
+) -> Document
 where
     I: Iterator<Item = D>,
 {
@@ -798,7 +867,7 @@ where
     let items = args.map(|d| d.to_doc()).intersperse(pretty::delim(delim));
     break_(open, open)
         .append(concat(items))
-        .nest(INDENT)
+        .nest(indent)
         .append(break_(delim, ""))
         .append(close)
 }
@@ -890,6 +959,7 @@ where
     D: Documentable,
     's: 'f,
 {
+    #[allow(unused)]
     pub fn new(formatter: &'f Formatter<'s>, doc: &'d Spanned<D>) -> Self {
         Self { formatter, doc }
     }

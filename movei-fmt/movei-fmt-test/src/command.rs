@@ -5,19 +5,32 @@ use std::str::FromStr;
 #[derive(Debug, Clone)]
 pub enum ConfigEntry {
     Width(u64),
+    Indent(usize),
 }
 
 impl FromStr for ConfigEntry {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let trimed = strip(s.trim(), "//!").and_then(|l| strip(l.trim_start(), "width:"));
+        let remaining = strip(s.trim(), "//!");
+
+        let trimed = remaining
+            .as_ref()
+            .and_then(|l| strip(l.trim_start(), "width:"));
         if let Some(trimed) = trimed {
             let width = trimed.trim().parse::<u64>()?;
-            Ok(ConfigEntry::Width(width))
-        } else {
-            bail!("cannot parse to width config")
+            return Ok(ConfigEntry::Width(width));
         }
+
+        let trimed = remaining
+            .as_ref()
+            .and_then(|l| strip(l.trim_start(), "indent:"));
+        if let Some(trimed) = trimed {
+            let indent = trimed.trim().parse::<usize>()?;
+            return Ok(ConfigEntry::Indent(indent));
+        }
+
+        bail!("cannot parse to width config")
     }
 }
 impl CommandConfigEntry for ConfigEntry {}
@@ -45,6 +58,7 @@ impl Default for FmtTestCommand {
 #[derive(Debug)]
 pub struct FmtConfig {
     width: u64,
+    indent: usize,
     text: Vec<String>,
 }
 
@@ -52,6 +66,7 @@ impl Default for FmtConfig {
     fn default() -> Self {
         Self {
             width: 80,
+            indent: 4,
             text: vec![],
         }
     }
@@ -59,6 +74,9 @@ impl Default for FmtConfig {
 impl FmtConfig {
     pub fn width(&self) -> u64 {
         self.width
+    }
+    pub fn indent(&self) -> usize {
+        self.indent
     }
     pub fn text(&self) -> String {
         self.text.join("\n")
@@ -90,6 +108,9 @@ impl Command for FmtTestCommand {
         match (self, config) {
             (FmtTestCommand::Fmt(c), ConfigEntry::Width(w)) => {
                 c.width = w;
+            }
+            (FmtTestCommand::Fmt(c), ConfigEntry::Indent(i)) => {
+                c.indent = i as usize;
             }
         }
         Ok(())

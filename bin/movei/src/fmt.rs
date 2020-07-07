@@ -1,8 +1,7 @@
-use crate::{context::MoveiContext, FmtArgs};
+use crate::FmtArgs;
 use anyhow::{bail, Result};
 use move_lang::{errors::FilesSourceText, parser, strip_comments_and_verify};
 use movei_fmt::{pretty, Formatter};
-use std::collections::BTreeMap;
 
 pub fn run(arg: FmtArgs) -> Result<()> {
     let FmtArgs { width, input } = arg;
@@ -13,7 +12,7 @@ pub fn run(arg: FmtArgs) -> Result<()> {
     let parsed_result =
         strip_comments_and_verify(fname, content.as_str()).and_then(|(stripped, comment_map)| {
             parser::syntax::parse_file_string(fname, stripped.as_str(), comment_map.clone())
-                .map(|(d, c)| (d, comment_map))
+                .map(|(d, _c)| (d, comment_map))
         });
     // TODO: strip comment
     match parsed_result {

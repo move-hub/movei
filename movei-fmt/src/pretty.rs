@@ -104,7 +104,7 @@ pub enum Document {
     ForceBreak,
 
     /// May break contained document based on best fit, thus flex break
-    FlexBreak(Box<Document>),
+    FlexBreak(String, Box<Document>),
 
     /// Renders `broken` if group is broken, `unbroken` otherwise
     Break {
@@ -122,10 +122,10 @@ pub enum Document {
     NestCurrent(Box<Document>),
 
     /// Nests the given document to the current cursor position
-    Group(Box<Document>),
+    Group(String, Box<Document>),
 
     // May nest the given document based on best fit, thus flex group
-    FlexGroup(isize, Box<Document>),
+    FlexGroup(String, isize, Box<Document>),
 
     /// A string to render
     Text(String),
@@ -155,13 +155,13 @@ fn fits(mut limit: isize, mut docs: Vector<(isize, Mode, Document)>) -> bool {
 
             Document::ForceBreak => return false,
 
-            Document::FlexGroup(i, doc) => docs.push_front((i + indent, mode, *doc)),
+            Document::FlexGroup(_, i, doc) => docs.push_front((i + indent, mode, *doc)),
 
             Document::Nest(i, doc) => docs.push_front((i + indent, mode, *doc)),
 
             Document::NestCurrent(doc) => docs.push_front((indent, mode, *doc)),
 
-            Document::Group(doc) => docs.push_front((indent, Mode::Unbroken, *doc)),
+            Document::Group(_, doc) => docs.push_front((indent, Mode::Unbroken, *doc)),
 
             Document::Text(s) => limit -= s.len() as isize,
 
@@ -170,7 +170,7 @@ fn fits(mut limit: isize, mut docs: Vector<(isize, Mode, Document)>) -> bool {
                 Mode::Unbroken => limit -= unbroken.len() as isize,
             },
 
-            Document::FlexBreak(doc) => docs.push_front((indent, mode, *doc)),
+            Document::FlexBreak(_, doc) => docs.push_front((indent, mode, *doc)),
 
             Document::Cons(left, right) => {
                 docs.push_front((indent, mode.clone(), *right));
@@ -186,7 +186,11 @@ pub fn format(limit: isize, doc: Document) -> String {
         &mut buffer,
         limit,
         0,
-        vector![(0, Mode::Unbroken, Document::Group(Box::new(doc)))],
+        vector![(
+            0,
+            Mode::Unbroken,
+            Document::Group("global".to_string(), Box::new(doc))
+        )],
     );
     // TODO: figure out more performance way
     // trim empty lines
@@ -239,25 +243,52 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: Vector<(isize, 
                 docs.push_front((width, mode, *doc));
             }
 
-            Document::Group(doc) => {
+            Document::Group(label, doc) => {
                 docs.push_front((indent, Mode::Unbroken, (*doc).clone()));
-                if !fits(limit - width, docs.clone()) {
+                let fitted = fits(limit - width, docs.clone());
+                trace!(
+                    "{}group: {}, indent: {:?}, limit: {}, fit: {}",
+                    " ".repeat(indent as usize),
+                    &label,
+                    indent,
+                    limit - width,
+                    fitted
+                );
+                if !fitted {
                     docs.pop_front();
                     docs.push_front((indent, Mode::Broken, (*doc).clone()));
                 }
             }
 
-            Document::FlexBreak(doc) => {
+            Document::FlexBreak(label, doc) => {
                 docs.push_front((indent, Mode::Unbroken, (*doc).clone()));
-                if !fits(limit - width, docs.clone()) {
+                let fitted = fits(limit - width, docs.clone());
+                trace!(
+                    "{}flexbreak: {}, indent: {:?}, limit: {}, fit: {}",
+                    " ".repeat(indent as usize),
+                    &label,
+                    indent,
+                    limit - width,
+                    fitted
+                );
+                if !fitted {
                     docs.pop_front();
                     docs.push_front((indent, Mode::Broken, (*doc).clone()));
                 }
             }
 
-            Document::FlexGroup(i, doc) => {
+            Document::FlexGroup(label, i, doc) => {
                 docs.push_front((indent, Mode::Unbroken, (*doc).clone()));
-                if !fits(limit - width, docs.clone()) {
+                let fitted = fits(limit - width, docs.clone());
+                trace!(
+                    "{}flexgroup: {}, indent: {:?}, limit: {}, fit: {}",
+                    " ".repeat(indent as usize),
+                    &label,
+                    indent,
+                    limit - width,
+                    fitted
+                );
+                if !fitted {
                     docs.pop_front();
                     docs.push_front((indent, Mode::Broken, line()));
                     docs.push_front((indent + i, Mode::Broken, line().append((*doc).clone())));
@@ -308,13 +339,13 @@ pub fn delim(d: &str) -> Document {
 }
 
 #[inline]
-pub fn flex_group(ident: isize, d: impl Documentable) -> Document {
-    Document::FlexGroup(ident, Box::new(d.to_doc()))
+pub fn flex_group(label: String, ident: isize, d: impl Documentable) -> Document {
+    Document::FlexGroup(label, ident, Box::new(d.to_doc()))
 }
 
 #[inline]
-pub fn group(d: impl Documentable) -> Document {
-    Document::Group(Box::new(d.to_doc()))
+pub fn group(label: String, d: impl Documentable) -> Document {
+    Document::Group(label, Box::new(d.to_doc()))
 }
 
 #[inline]
@@ -324,18 +355,18 @@ pub fn nest(indent: isize, d: impl Documentable) -> Document {
 
 impl Document {
     #[inline]
-    pub fn group(self) -> Document {
-        Document::Group(Box::new(self))
+    pub fn group(self, label: String) -> Document {
+        Document::Group(label, Box::new(self))
     }
 
     #[inline]
-    pub fn flex_group(self, indent: isize) -> Document {
-        Document::FlexGroup(indent, Box::new(self))
+    pub fn flex_group(self, label: String, indent: isize) -> Document {
+        Document::FlexGroup(label, indent, Box::new(self))
     }
 
     #[inline]
-    pub fn flex_break(self) -> Document {
-        Document::FlexBreak(Box::new(self))
+    pub fn flex_break(self, label: String) -> Document {
+        Document::FlexBreak(label, Box::new(self))
     }
 
     #[inline]

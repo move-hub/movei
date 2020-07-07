@@ -1,6 +1,5 @@
 use move_ir_types::location::Loc;
 use move_lang::parser::ast::{Constant, Function, SpecBlock, StructDefinition, Use};
-use std::cmp::Ordering;
 
 #[derive(Debug, PartialEq)]
 pub enum LangItem<'a> {
