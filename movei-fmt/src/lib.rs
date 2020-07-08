@@ -4,7 +4,9 @@ extern crate im;
 extern crate log;
 
 mod lang_items;
-pub mod pretty;
+mod pretty;
+
+pub use pretty::format;
 
 use crate::{
     lang_items::LangItem,
@@ -103,23 +105,6 @@ impl<'a> Inner<'a> {
     }
 }
 
-macro_rules! indent {
-    ($n:expr, $doc:expr) => {
-        pretty::line()
-            .append(Document::ForceBreak)
-            .append($doc)
-            .nest($n)
-    };
-}
-//
-// macro_rules! nest {
-//     ($n:literal, $($doc:expr),*) => {{
-//         Document::Nil$(
-//             .append($doc)
-//         )*.nest($n)
-//     }};
-// }
-
 macro_rules! concats {
     ($($doc:expr),*) => {{
         Document::Nil$(
@@ -209,12 +194,7 @@ impl<'a> Formatter<'a> {
 
         let comments = comments(self.pop_doc_comments(loc.span().start().to_usize()));
         let body = self.lang_items_(items.iter());
-        let body = "script "
-            .to_doc()
-            .append("{")
-            .append(indent!(self.indent, body))
-            .append(line())
-            .append("}");
+        let body = nest(self.indent, line().append(body)).surround("script {", line().append("}"));
 
         comments.append(body)
     }
@@ -305,7 +285,8 @@ impl<'a> Formatter<'a> {
                             comments(self.pop_doc_comments(f.0.loc().span().start().to_usize()));
                         field_comments.append(self.struct_field_(f))
                     });
-                    let fs = concat(fs.intersperse(",".to_doc().append(line())));
+                    let fs = concat(fs.map(|f| f.append(",")).intersperse(line()));
+                    // let fs = concat(fs.intersperse(",".to_doc().append(line())));
                     line()
                         .append(fs)
                         .nest(self.indent)
@@ -398,7 +379,6 @@ impl<'a> Formatter<'a> {
             .append(name)
             .append(self.fn_signature_(signature))
             .append(self.fn_acquires_(acquires))
-            .append(" ")
             .append(self.fn_body_(body));
 
         func.group("func".to_string())
@@ -465,14 +445,17 @@ impl<'a> Formatter<'a> {
             self.indent,
             acquires.iter().map(|ma| ma.to_doc()),
         );
-        "acquires ".to_doc().append(acquires)
+        break_("", " ")
+            .append("acquires ")
+            .append(acquires.flex_break("acquires"))
+            .flex_break("fn_acquires")
     }
 
     fn fn_body_(&self, body: &ast::FunctionBody) -> Document {
         use ast::FunctionBody_ as B;
         match &body.value {
             B::Native => ";".to_doc(),
-            B::Defined(s) => self.sequence_(s),
+            B::Defined(s) => " ".to_doc().append(self.sequence_(s)),
         }
     }
 
@@ -502,10 +485,8 @@ impl<'a> Formatter<'a> {
                     let ss = ss.iter().map(|d| self.type_(d));
                     wrap_list("<", ">", ",", self.indent, ss)
                 };
-                group(
-                    "apply_type".to_string(),
-                    concats!(module_access.as_ref(), tys),
-                )
+
+                concats!(module_access.as_ref(), tys.flex_break("apply_type"))
             }
             Type_::Ref(mut_, s) => {
                 let prefix = if *mut_ { "&mut " } else { "&" };
@@ -514,17 +495,11 @@ impl<'a> Formatter<'a> {
             }
             Type_::Fun(args, ret) => {
                 let args = args.iter().map(|t| self.type_(t));
-                let args = wrap_list("|", "|: ", ",", self.indent, args);
+                let args = wrap_list("|", "|", ",", self.indent, args);
                 let ret = self.type_(ret.as_ref());
-                args.append(ret)
+                args.append(": ").append(ret)
             }
         }
-    }
-
-    #[allow(unused)]
-    fn type_list_(&self, tys: &[ast::Type]) -> Document {
-        let items = tys.iter().map(|d| self.type_(d)).intersperse(delim(","));
-        concat(items)
     }
 
     fn exp_(&self, exp: &ast::Exp) -> Document {
@@ -538,6 +513,7 @@ impl<'a> Formatter<'a> {
             E::Name(ma, tys_opt) => {
                 let tys = if let Some(ss) = tys_opt {
                     wrap_list("<", ">", ",", self.indent, ss.iter().map(|s| self.type_(s)))
+                        .flex_break("type_parameters")
                 } else {
                     nil()
                 };
@@ -546,21 +522,20 @@ impl<'a> Formatter<'a> {
             E::Call(ma, tys_opt, rhs) => {
                 let tys = if let Some(ss) = tys_opt {
                     wrap_list("<", ">", ",", self.indent, ss.iter().map(|s| self.type_(s)))
-                        .group("type_arguments".to_string())
+                        .flex_break("type_arguments".to_string())
                 } else {
                     nil()
                 };
-                nil()
-                    .append(ma)
-                    .append(tys)
-                    .append(wrap_list(
-                        "(",
-                        ")",
-                        ",",
-                        self.indent,
-                        rhs.value.iter().map(|e| self.exp_(e)),
-                    ))
-                    .group("call_expression".to_string())
+                let rhs = wrap_list(
+                    "(",
+                    ")",
+                    ",",
+                    self.indent,
+                    rhs.value.iter().map(|e| self.exp_(e)),
+                )
+                .flex_break("call_args");
+
+                nil().append(ma).append(tys).append(rhs)
             }
             E::Pack(ma, tys_opt, fields) => {
                 let tys = if let Some(ss) = tys_opt {
@@ -568,73 +543,81 @@ impl<'a> Formatter<'a> {
                 } else {
                     nil()
                 };
-                // nil().append(ma).append(tys).append(
-                //     nil().append("{").append(line())
-                // )
-                let fields = fields
-                    .iter()
-                    .map(|p| self.pack_field_(p))
-                    .intersperse(line());
-                let fields = concat(fields);
-                let fields = group(
-                    "pack_fields".to_string(),
-                    concats!("{", indent!(self.indent, fields), line(), "}"),
-                );
-                concats!(ma, tys, " ", fields)
+                let fields = if fields.is_empty() {
+                    "{}".to_doc()
+                } else {
+                    let fields = concat(
+                        fields
+                            .into_iter()
+                            .map(|f| self.pack_field_(f))
+                            .intersperse(break_(",", ", ")),
+                    );
+                    break_("{", "{ ")
+                        .append(fields)
+                        .nest(self.indent)
+                        .append(break_(",", " "))
+                        .append("}")
+                };
+                ma.to_doc()
+                    .append(tys.flex_break("types"))
+                    .append(" ")
+                    .append(fields.flex_break("fields"))
             }
             E::IfElse(b, t, f_opt) => {
                 let b = self.exp_(b.as_ref());
                 let t = self.exp_(t.as_ref());
                 let f_opt = f_opt.as_ref().map(|f| self.exp_(f.as_ref()));
 
-                let if_part = "if "
-                    .to_doc()
-                    .append(nest(self.indent, concats!(break_("(", "("), b)))
-                    .append(break_(") ", ") "))
-                    .append(t);
+                // let if_part = "if "
+                //     .to_doc()
+                //     .append(nest(self.indent, concats!(break_("(", "("), b)))
+                //     .append(break_(") ", ") "))
+                //     .append(t);
+                //
                 let else_part = if let Some(f) = f_opt {
                     concats!(" else ", f)
                 } else {
                     nil()
                 };
-                if_part.append(else_part)
+                concats!("if ", "(", b, ") ", t, else_part).flex_break("if-else")
             }
             E::While(b, e) => {
                 let b = self.exp_(b.as_ref());
                 let e = self.exp_(e.as_ref());
-                "while "
-                    .to_doc()
-                    .append(nest(self.indent, break_("(", "(").append(b)))
-                    .append(break_(")", ")"))
-                    .append(e)
+                concats!("while ", "(", b, ")", e)
+                // "while "
+                //     .to_doc()
+                //     .append(nest(self.indent, break_("(", "(").append(b)))
+                //     .append(break_(")", ")"))
+                //     .append(e)
             }
             E::Loop(e) => {
                 let e = self.exp_(e.as_ref());
-                "loop ".to_doc().append(e)
+                concats!("loop ", e)
             }
             E::Block(seq) => self.sequence_(seq),
             E::Lambda(bs, e) => {
                 let bs = bs.value.iter().map(|b| self.bind_(b));
-                let bindlist = wrap_args("|", "|", ",", self.indent, bs);
+                let bindlist = wrap_list("|", "|", ",", self.indent, bs);
                 let e = self.exp_(e.as_ref());
-                concats!("fun ", bindlist, " ", e)
+                concats!("fun ", bindlist, " ", e).flex_break("lambda")
             }
             E::ExpList(es) => {
                 let es = es.iter().map(|e| self.exp_(e));
-                wrap_args("(", ")", ",", self.indent, es)
+                wrap_list("(", ")", ",", self.indent, es).flex_break("tuple")
             }
             E::Assign(lvalue, rhs) => {
                 let lvalue = self.exp_(lvalue.as_ref());
                 let rhs = self.exp_(rhs.as_ref());
-                concats!(lvalue, " = ", rhs)
+                concats!(lvalue, break_(" =", " = ").nest(self.indent), rhs).flex_break("assign")
             }
             E::Return(e) => {
                 let e = e.as_ref().map(|e| self.exp_(e.as_ref()));
-                "return".to_doc().append(if let Some(v) = e {
-                    concats!(" ", v)
+                if let Some(v) = e {
+                    concats!("return ", v)
                 } else {
-                    nil()
-                })
+                    "return".to_doc()
+                }
             }
             E::Abort(e) => {
                 let e = self.exp_(e.as_ref());
@@ -653,7 +636,13 @@ impl<'a> Formatter<'a> {
             E::BinopExp(l, op, r) => {
                 let l = self.exp_(l.as_ref());
                 let r = self.exp_(r.as_ref());
-                concats!(l, " ", op, " ", r)
+                concats!(
+                    l.flex_break("left_exp"),
+                    " ",
+                    op,
+                    break_("", " ").nest(self.indent),
+                    r.flex_break("right_exp")
+                )
             }
             E::Borrow(mut_, e) => {
                 let mut_sign = if *mut_ { "&mut " } else { "&" };
@@ -702,7 +691,7 @@ impl<'a> Formatter<'a> {
             B::Var(v) => v.to_doc(),
             B::Unpack(ma, tys_opt, fields) => {
                 let tys_opt = if let Some(ss) = tys_opt {
-                    wrap_args(
+                    wrap_list(
                         "<",
                         ">",
                         ",",
@@ -712,64 +701,58 @@ impl<'a> Formatter<'a> {
                 } else {
                     nil()
                 };
-                let fields = concat(
-                    fields
-                        .iter()
-                        .map(|(f, b)| concats!(f, ": ", self.bind_(b), line())),
-                );
-                let fields = nest(self.indent, "{".to_doc().append(line()).append(fields));
-                let fields = fields.append(line()).append("}");
-                ma.to_doc().append(tys_opt).append(fields)
+
+                let fields = fields
+                    .into_iter()
+                    .map(|(f, b)| f.to_doc().append(": ").append(self.bind_(b)))
+                    .intersperse(break_(",", ", "));
+                let fields = break_("{", "{ ")
+                    .append(concat(fields))
+                    .nest(self.indent)
+                    .append(break_(",", " "))
+                    .append("}");
+
+                ma.to_doc()
+                    .append(tys_opt.flex_break("type_arguments"))
+                    .append(fields.flex_break("bind_fields"))
             }
         }
     }
 
     fn sequence_(&self, sequence: &ast::Sequence) -> Document {
         let (uses, items, _, exp) = sequence;
-        // let no_uses = uses.is_empty();
-        // let no_items = items.is_empty();
-        let sequences = uses
+
+        let mut sequences: Vec<_> = uses
             .into_iter()
             .map(|u| self.use_(u))
             .chain(items.iter().map(|i| {
                 // TODO: fix regular comments
                 let _ = self.pop_doc_comments(i.loc.span().start().to_usize());
                 self.sequence_item_(i)
-            }));
+            }))
+            .collect();
 
-        let body = if let Some(e) = exp.as_ref() {
-            concat(
-                sequences
-                    .chain(vec![e].into_iter().map(|e| self.exp_(e)))
-                    .intersperse(line()),
-            )
-        } else {
-            concat(sequences.intersperse(line()))
+        if let Some(e) = exp.as_ref() {
+            sequences.push(self.exp_(e).group("sequence_last_exp".to_string()));
         };
-        // let line_or_break = if no_uses && no_items {
-        //     break_("", "")
-        // } else {
-        //     line()
-        // };
-        break_("{", "{")
-            .to_doc()
-            .append(body)
-            .nest(self.indent)
-            .append(break_("", ""))
-            .append("}")
-        // "{".to_doc()
-        //     .append(body.flex_group("sequence_body".to_string(), INDENT))
-        //     .append("}")
-    }
-
-    #[allow(unused)]
-    fn sequence_item_list(&self, item_list: &[ast::SequenceItem]) -> Document {
-        concat(
-            item_list
-                .iter()
-                .map(|s| self.sequence_item_(s))
-                .intersperse(line()),
-        )
+        if sequences.is_empty() {
+            "{ }".to_doc()
+        } else if sequences.len() == 1 {
+            let body = concat(sequences.into_iter().intersperse(line()));
+            break_("{", "{ ")
+                .append(body)
+                .nest(self.indent)
+                .append(break_("", " "))
+                .append("}")
+                .flex_break("sequence".to_string())
+        } else {
+            let body = concat(sequences.into_iter().intersperse(line()));
+            line()
+                .append(body)
+                .nest(self.indent)
+                .surround("{", line().append("}"))
+                .group("sequence".to_string())
+        }
     }
 
     fn sequence_item_(&self, item: &ast::SequenceItem) -> Document {
@@ -818,7 +801,7 @@ impl<'a> Formatter<'a> {
                 concats!("let ", bs, ty_opt)
             }
         };
-        doc.append(";")
+        doc.append(";").group("sequence_item".to_string())
     }
 }
 
@@ -943,37 +926,5 @@ where
 {
     fn to_doc(&self) -> Document {
         self.value.to_doc()
-    }
-}
-
-struct WrappedDocumentable<'f, 's, 'd, D: Documentable>
-where
-    's: 'f,
-{
-    formatter: &'f Formatter<'s>,
-    doc: &'d Spanned<D>,
-}
-
-impl<'f, 's, 'd, D> WrappedDocumentable<'f, 's, 'd, D>
-where
-    D: Documentable,
-    's: 'f,
-{
-    #[allow(unused)]
-    pub fn new(formatter: &'f Formatter<'s>, doc: &'d Spanned<D>) -> Self {
-        Self { formatter, doc }
-    }
-}
-
-impl<'f, 's, 'd, D> Documentable for WrappedDocumentable<'f, 's, 'd, D>
-where
-    D: Documentable,
-    's: 'f,
-{
-    fn to_doc(&self) -> Document {
-        let poped_comments = self
-            .formatter
-            .pop_doc_comments(self.doc.loc.span().start().to_usize());
-        comments(poped_comments).append(&self.doc)
     }
 }

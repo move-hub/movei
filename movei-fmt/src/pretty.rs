@@ -355,18 +355,18 @@ pub fn nest(indent: isize, d: impl Documentable) -> Document {
 
 impl Document {
     #[inline]
-    pub fn group(self, label: String) -> Document {
-        Document::Group(label, Box::new(self))
+    pub fn group(self, label: impl ToString) -> Document {
+        Document::Group(label.to_string(), Box::new(self))
     }
 
     #[inline]
-    pub fn flex_group(self, label: String, indent: isize) -> Document {
-        Document::FlexGroup(label, indent, Box::new(self))
+    pub fn flex_group(self, label: impl ToString, indent: isize) -> Document {
+        Document::FlexGroup(label.to_string(), indent, Box::new(self))
     }
 
     #[inline]
-    pub fn flex_break(self, label: String) -> Document {
-        Document::FlexBreak(label, Box::new(self))
+    pub fn flex_break(self, label: impl ToString) -> Document {
+        Document::FlexBreak(label.to_string(), Box::new(self))
     }
 
     #[inline]

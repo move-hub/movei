@@ -1,13 +1,36 @@
+mod color_diff;
 mod command;
 
 use anyhow::Result;
-use difference::assert_diff;
+use color_diff::color_diff;
+use env_logger;
 use move_lang::parser;
-use movei_fmt::{pretty, Formatter};
+use movei_fmt::{format, Formatter};
 use movei_test::command_parser;
 use std::path::Path;
 
+macro_rules! assert_diff {
+    ($orig:expr, $edit:expr, $expected:expr) => {{
+        let orig = $orig;
+        let edit = $edit;
+
+        let changeset = color_diff(orig, edit);
+        if changeset.difference() != $expected {
+            println!("{}", changeset);
+            panic!(
+                "assertion failed: edit distance between {:?} and {:?} is {} and not {}, see \
+                    diffset above",
+                orig,
+                edit,
+                changeset.difference(),
+                &($expected)
+            )
+        }
+    }};
+}
+
 pub fn functional_test(p: &Path) -> datatest::Result<()> {
+    let _ = env_logger::try_init();
     let content = std::fs::read_to_string(p)?;
 
     let lines = content.lines().peekable();
@@ -30,7 +53,7 @@ fn run_fmt(width: u64, indent: usize, text: &str) -> Result<()> {
     let def = defs.first().unwrap();
     let formatter = Formatter::new(text, comments, indent);
     let doc = formatter.definition(def);
-    let res = pretty::format(width as isize, doc);
-    assert_diff!(text, res.as_str(), "\n", 0);
+    let res = format(width as isize, doc);
+    assert_diff!(text, res.as_str(), 0);
     Ok(())
 }

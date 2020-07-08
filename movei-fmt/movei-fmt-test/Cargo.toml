@@ -10,7 +10,10 @@ edition = "2018"
 itertools = "0.9"
 anyhow="1.0"
 move-lang = "0.0.1"
-difference = "2.0"
+diff = "0.1"
+colored = "1.9"
+env_logger = "0.7"
+log = "0.4"
 #colored_diff = "0.2"
 movei-fmt = {path = "../../movei-fmt"}
 datatest = {path = "../../datatest"}
