@@ -1,10 +1,14 @@
 use crate::FmtArgs;
 use anyhow::{bail, Result};
 use move_lang::{errors::FilesSourceText, parser, strip_comments_and_verify};
-use movei_fmt::{pretty, Formatter};
+use movei_fmt::{format, Formatter};
 
 pub fn run(arg: FmtArgs) -> Result<()> {
-    let FmtArgs { width, input } = arg;
+    let FmtArgs {
+        width,
+        indent,
+        input,
+    } = arg;
 
     let content = std::fs::read_to_string(input.as_path())?;
     let fname = input.as_path().display().to_string();
@@ -20,9 +24,9 @@ pub fn run(arg: FmtArgs) -> Result<()> {
             match defs.first() {
                 None => bail!("source code has no definitions"),
                 Some(def) => {
-                    let formatter = Formatter::new(content.as_str(), comments);
+                    let formatter = Formatter::new(content.as_str(), comments, indent);
                     let doc = formatter.definition(def);
-                    let output = pretty::format(width as isize, doc);
+                    let output = format(width as isize, doc);
                     println!("{}", output);
                 }
             };

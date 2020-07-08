@@ -90,6 +90,8 @@ pub struct TestArgs {
 pub struct FmtArgs {
     #[clap(short, long)]
     pub width: u32,
+    #[clap(short = 'n', long, default_value = "4")]
+    pub indent: usize,
     #[clap(name = "input", parse(from_os_str))]
     pub input: PathBuf,
 }

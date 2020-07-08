@@ -3,12 +3,14 @@ extern crate im;
 #[macro_use]
 extern crate log;
 
+mod comments;
 mod lang_items;
 mod pretty;
 
 pub use pretty::format;
 
 use crate::{
+    comments::{Comment, Comments},
     lang_items::LangItem,
     pretty::{
         break_, concat, delim, force_break, group, line, lines, nest, nil, space, Document,
@@ -25,83 +27,45 @@ use move_lang::{
 };
 use std::cell::RefCell;
 
-struct Comment<'a> {
-    pub span: Span,
-    pub content: &'a str,
-}
-pub enum CommentType {
-    Block,
-    Line,
-    // Unknown
-}
-
-impl<'a> Comment<'a> {
-    #[allow(unused)]
-    pub fn comment_type(&self) -> CommentType {
-        if self.content.starts_with("//") {
-            return CommentType::Line;
-        } else if self.content.starts_with("/*") {
-            return CommentType::Block;
-        } else {
-            unreachable!()
-        }
-    }
-}
-
 pub struct Formatter<'a> {
-    inner: RefCell<Inner<'a>>,
+    inner: RefCell<Comments>,
+    source: &'a str,
     indent: isize,
 }
 
 impl<'a> Formatter<'a> {
     pub fn new(source: &'a str, comment_map: FileCommentMap, indent: usize) -> Self {
-        let inner = Inner::new(source, comment_map);
+        let comments = Comments::new(source, comment_map.keys().cloned().collect_vec());
 
         Self {
-            inner: RefCell::new(inner),
+            inner: RefCell::new(comments),
             indent: indent as isize,
+            source,
         }
     }
+    /// Pop comments that occur before a byte-index in the source
+    fn pop_doc_comments(&self, limit: usize) -> impl Iterator<Item = Comment> {
+        self.inner
+            .borrow_mut()
+            .pop_doc_comments(limit)
+            .map(move |s| Comment {
+                span: s,
+                content: &self.source[s.start().to_usize()..s.end().to_usize()],
+            })
+    }
 
-    fn pop_doc_comments(&self, limit: usize) -> impl Iterator<Item = Comment<'a>> {
-        self.inner.borrow_mut().pop_doc_comments(limit)
+    fn pop_regular_comments(&self, limit: usize) -> impl Iterator<Item = Comment> {
+        self.inner
+            .borrow_mut()
+            .pop_comments(limit)
+            .map(move |s| Comment {
+                span: s,
+                content: &self.source[s.start().to_usize()..s.end().to_usize()],
+            })
     }
 
     pub fn indent(&self) -> isize {
         self.indent
-    }
-}
-
-struct Inner<'a> {
-    doc_comments: Vec<Span>,
-    source: &'a str,
-}
-
-impl<'a> Inner<'a> {
-    pub fn new(source: &'a str, comment_map: FileCommentMap) -> Self {
-        Self {
-            source,
-            doc_comments: comment_map.keys().cloned().collect(),
-        }
-    }
-    // Pop comments that occur before a byte-index in the source
-    pub fn pop_doc_comments(&mut self, limit: usize) -> impl Iterator<Item = Comment<'a>> {
-        let spans = self
-            .doc_comments
-            .iter()
-            .take_while_ref(|span| span.start().to_usize() < limit)
-            .map(|s| *s)
-            .collect::<Vec<_>>();
-        self.doc_comments.drain(0..spans.len());
-        let mut comments = Vec::with_capacity(spans.len());
-        for s in spans {
-            let comment = Comment {
-                span: s,
-                content: &self.source[s.start().to_usize()..s.end().to_usize()],
-            };
-            comments.push(comment);
-        }
-        comments.into_iter()
     }
 }
 
@@ -726,14 +690,16 @@ impl<'a> Formatter<'a> {
             .into_iter()
             .map(|u| self.use_(u))
             .chain(items.iter().map(|i| {
-                // TODO: fix regular comments
-                let _ = self.pop_doc_comments(i.loc.span().start().to_usize());
-                self.sequence_item_(i)
+                let comments = comments(self.pop_regular_comments(i.loc.span().start().to_usize()));
+                concats!(comments, self.sequence_item_(i))
             }))
             .collect();
 
         if let Some(e) = exp.as_ref() {
-            sequences.push(self.exp_(e).group("sequence_last_exp".to_string()));
+            let loc = e.loc;
+            let comments = comments(self.pop_regular_comments(loc.span().start().to_usize()));
+            let e = self.exp_(e).group("sequence_last_exp".to_string());
+            sequences.push(comments.append(e));
         };
         if sequences.is_empty() {
             "{ }".to_doc()
