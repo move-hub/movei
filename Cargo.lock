@@ -3,7 +3,7 @@
 [[package]]
 name = "abigen"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "heck",
@@ -192,7 +192,7 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 dependencies = [
- "block-padding 0.1.5",
+ "block-padding",
  "byte-tools",
  "byteorder",
  "generic-array 0.12.3",
@@ -204,7 +204,6 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
- "block-padding 0.2.0",
  "generic-array 0.14.2",
 ]
 
@@ -227,15 +226,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "block-padding"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c98bfd7c112b6399fef97cc0614af1cd375b27a112e552ce60f94c1b5f13cb74"
-
-[[package]]
 name = "borrow-graph"
 version = "0.0.1"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-workspace-hack",
  "mirai-annotations",
@@ -266,7 +259,7 @@ checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 [[package]]
 name = "bytecode-source-map"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "codespan",
@@ -283,7 +276,7 @@ dependencies = [
 [[package]]
 name = "bytecode-verifier"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "borrow-graph",
@@ -447,7 +440,7 @@ dependencies = [
 [[package]]
 name = "compiled-stdlib"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -465,7 +458,7 @@ dependencies = [
 [[package]]
 name = "compiler"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytecode-source-map",
@@ -624,7 +617,7 @@ dependencies = [
 [[package]]
 name = "datatest-stable"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-workspace-hack",
  "regex",
@@ -636,9 +629,10 @@ dependencies = [
 [[package]]
 name = "debug-interface"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
+ "chrono",
  "libra-logger",
  "libra-metrics",
  "libra-workspace-hack",
@@ -704,7 +698,7 @@ checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 [[package]]
 name = "docgen"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "codespan",
@@ -729,7 +723,7 @@ checksum = "134951f4028bdadb9b84baf4232681efbf277da25144b9b0ad65df75946c422b"
 [[package]]
 name = "ed25519-dalek"
 version = "1.0.0-pre.3"
-source = "git+https://github.com/calibra/ed25519-dalek.git?branch=fiat2#015e09bce15140e7d6e3c21694d512c456e0e434"
+source = "git+https://github.com/novifinancial/ed25519-dalek.git?branch=fiat2#015e09bce15140e7d6e3c21694d512c456e0e434"
 dependencies = [
  "clear_on_drop",
  "curve25519-dalek",
@@ -848,7 +842,7 @@ checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 [[package]]
 name = "functional-tests"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -1297,7 +1291,7 @@ dependencies = [
 [[package]]
 name = "ir-to-bytecode"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytecode-source-map",
@@ -1316,7 +1310,7 @@ dependencies = [
 [[package]]
 name = "ir-to-bytecode-syntax"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "codespan",
@@ -1361,12 +1355,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keccak"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67c21572b4949434e4fc1e1978b99c5f77064153c59d998bf13ecd96fb5ecba7"
-
-[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1379,7 +1367,7 @@ dependencies = [
 [[package]]
 name = "language-e2e-tests"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -1422,7 +1410,7 @@ checksum = "a9f8082297d534141b30c8d39e9b1773713ab50fdbe4ff30f750d063b3bfd701"
 [[package]]
 name = "libra-canonical-serialization"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-workspace-hack",
  "serde",
@@ -1432,7 +1420,7 @@ dependencies = [
 [[package]]
 name = "libra-config"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "get_if_addrs",
  "libra-canonical-serialization",
@@ -1456,7 +1444,7 @@ dependencies = [
 [[package]]
 name = "libra-crypto"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -1480,7 +1468,7 @@ dependencies = [
  "serde-name",
  "serde_bytes",
  "sha2 0.9.1",
- "sha3",
+ "static_assertions",
  "thiserror",
  "tiny-keccak",
  "x25519-dalek",
@@ -1489,7 +1477,7 @@ dependencies = [
 [[package]]
 name = "libra-crypto-derive"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-workspace-hack",
  "proc-macro2 1.0.18",
@@ -1500,7 +1488,7 @@ dependencies = [
 [[package]]
 name = "libra-github-client"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-crypto",
  "libra-workspace-hack",
@@ -1513,12 +1501,12 @@ dependencies = [
 [[package]]
 name = "libra-global-constants"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 
 [[package]]
 name = "libra-logger"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "chrono",
  "env_logger",
@@ -1532,7 +1520,7 @@ dependencies = [
 [[package]]
 name = "libra-metrics"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "futures",
@@ -1548,7 +1536,7 @@ dependencies = [
 [[package]]
 name = "libra-network-address"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-canonical-serialization",
  "libra-crypto",
@@ -1563,7 +1551,7 @@ dependencies = [
 [[package]]
 name = "libra-nibble"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-workspace-hack",
  "serde",
@@ -1572,7 +1560,7 @@ dependencies = [
 [[package]]
 name = "libra-proptest-helpers"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "crossbeam",
  "libra-workspace-hack",
@@ -1583,7 +1571,7 @@ dependencies = [
 [[package]]
 name = "libra-secure-storage"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "base64 0.12.3",
  "chrono",
@@ -1606,12 +1594,12 @@ dependencies = [
 [[package]]
 name = "libra-secure-time"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 
 [[package]]
 name = "libra-state-view"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "libra-crypto",
@@ -1622,7 +1610,7 @@ dependencies = [
 [[package]]
 name = "libra-temppath"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "hex",
  "libra-workspace-hack",
@@ -1632,7 +1620,7 @@ dependencies = [
 [[package]]
 name = "libra-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1661,7 +1649,7 @@ dependencies = [
 [[package]]
 name = "libra-vault-client"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "base64 0.12.3",
  "chrono",
@@ -1677,7 +1665,7 @@ dependencies = [
 [[package]]
 name = "libra-vm"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "debug-interface",
  "libra-canonical-serialization",
@@ -1701,7 +1689,7 @@ dependencies = [
 [[package]]
 name = "libra-workspace-hack"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "bytes",
  "cc",
@@ -1894,7 +1882,7 @@ checksum = "54c239a898de56dc502ef97e1ab8fdbd1a7a0de9afc7d8412dd1f8cbda52ee55"
 [[package]]
 name = "move-core-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "hex",
@@ -1908,13 +1896,14 @@ dependencies = [
  "rand 0.7.3",
  "ref-cast",
  "serde",
+ "serde_bytes",
  "thiserror",
 ]
 
 [[package]]
 name = "move-ir-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "codespan",
@@ -1929,7 +1918,7 @@ dependencies = [
 [[package]]
 name = "move-lang"
 version = "0.0.1"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "borrow-graph",
@@ -1956,7 +1945,7 @@ dependencies = [
 [[package]]
 name = "move-prover"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "abigen",
  "anyhow",
@@ -1988,9 +1977,8 @@ dependencies = [
 [[package]]
 name = "move-vm-natives"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
- "bit-vec",
  "libra-crypto",
  "libra-types",
  "libra-workspace-hack",
@@ -2005,7 +1993,7 @@ dependencies = [
 [[package]]
 name = "move-vm-runtime"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "bytecode-verifier",
  "libra-crypto",
@@ -2023,7 +2011,7 @@ dependencies = [
 [[package]]
 name = "move-vm-types"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-canonical-serialization",
  "libra-crypto",
@@ -2202,9 +2190,12 @@ dependencies = [
 
 [[package]]
 name = "nibble_vec"
-version = "0.0.4"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8d77f3db4bce033f4d04db08079b2ef1c3d02b44e86f25d08886fafa7756ffa"
+checksum = "77a5d83df9f36fe23f0c3648c6bbb8b0298bb5f1939c8f2704431371f4b84d43"
+dependencies = [
+ "smallvec",
+]
 
 [[package]]
 name = "num"
@@ -2285,7 +2276,7 @@ dependencies = [
 [[package]]
 name = "num-variants"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "libra-workspace-hack",
  "proc-macro2 1.0.18",
@@ -2657,9 +2648,9 @@ dependencies = [
 
 [[package]]
 name = "radix_trie"
-version = "0.1.6"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d3681b28cd95acfb0560ea9441f82d6a4504fa3b15b97bd7b6e952131820e95"
+checksum = "56eba2a19109c6dfaaa74eff6e0ad7113ad038ebc6be05396862fa0e986b16a3"
 dependencies = [
  "endian-type",
  "nibble_vec",
@@ -2955,7 +2946,7 @@ dependencies = [
 [[package]]
 name = "resource-viewer"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "compiled-stdlib",
@@ -3129,10 +3120,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-generate"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c0928fc66f104114e98b9284e90a41b89f0ea3e9edf5c1425564fc263c32274"
+dependencies = [
+ "maplit",
+ "serde",
+ "serde-reflection",
+ "serde_bytes",
+ "serde_yaml",
+ "structopt",
+]
+
+[[package]]
 name = "serde-name"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92bb32dbe1df50291d7d00b5e573acb2c70b783baf3d1bce2d19c86be11c709e"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "serde-reflection"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5820d2a74b1f0694d959f48660bc52fa922239d5c2f6dcc17261c5307967b9e5"
 dependencies = [
  "serde",
  "thiserror",
@@ -3250,18 +3265,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sha3"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
-dependencies = [
- "block-buffer 0.9.0",
- "digest 0.9.0",
- "keccak",
- "opaque-debug 0.3.0",
-]
-
-[[package]]
 name = "signal-hook-registry"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3305,6 +3308,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
+name = "smallvec"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3757cb9d89161a2f24e1cf78efa0c1fcff485d18e3f55e0aa3480824ddaa0f3f"
+
+[[package]]
 name = "socket2"
 version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3319,7 +3328,7 @@ dependencies = [
 [[package]]
 name = "spec-lang"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytecode-source-map",
@@ -3348,7 +3357,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "stackless-bytecode-generator"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "borrow-graph",
  "bytecode-verifier",
@@ -3372,9 +3381,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "stdlib"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -3752,7 +3767,7 @@ checksum = "e987b6bf443f4b5b3b6f38704195592cca41c5bb7aedd3c3693c7081f8289860"
 [[package]]
 name = "transaction-builder"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "compiled-stdlib",
  "libra-canonical-serialization",
@@ -3766,15 +3781,18 @@ dependencies = [
 [[package]]
 name = "transaction-builder-generator"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "libra-canonical-serialization",
  "libra-types",
  "libra-workspace-hack",
  "move-core-types",
+ "serde-generate",
+ "serde-reflection",
+ "serde_yaml",
  "structopt",
- "textwrap 0.11.0",
+ "textwrap 0.12.1",
 ]
 
 [[package]]
@@ -3974,7 +3992,7 @@ checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 [[package]]
 name = "vm"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "libra-crypto",
@@ -3989,7 +4007,7 @@ dependencies = [
 [[package]]
 name = "vm-genesis"
 version = "0.1.0"
-source = "git+https://github.com/move-hub/libra?branch=movei#e76fadbef435b87610bf1eeae0ee70744232da11"
+source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
  "bytecode-verifier",
@@ -4235,7 +4253,7 @@ dependencies = [
 [[package]]
 name = "x25519-dalek"
 version = "0.6.0"
-source = "git+https://github.com/calibra/x25519-dalek.git?branch=fiat2#459bb04bbe7ba650f3e5c30e594542c1f7892225"
+source = "git+https://github.com/novifinancial/x25519-dalek.git?branch=fiat2#459bb04bbe7ba650f3e5c30e594542c1f7892225"
 dependencies = [
  "curve25519-dalek",
  "rand_core 0.5.1",

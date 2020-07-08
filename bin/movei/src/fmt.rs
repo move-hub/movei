@@ -15,7 +15,7 @@ pub fn run(arg: FmtArgs) -> Result<()> {
     let fname: &'static str = Box::leak(Box::new(fname));
     let parsed_result =
         strip_comments_and_verify(fname, content.as_str()).and_then(|(stripped, comment_map)| {
-            parser::syntax::parse_file_string(fname, stripped.as_str(), comment_map.clone())
+            parser::syntax::parse_file_string(fname, stripped.as_str(), Default::default())
                 .map(|(d, _c)| (d, comment_map))
         });
     // TODO: strip comment

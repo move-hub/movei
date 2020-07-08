@@ -45,8 +45,7 @@ impl Comments {
 fn pop_comments(c: &mut Vec<Span>, limit: usize) -> impl Iterator<Item = Span> {
     let spans = c
         .iter()
-        .take_while_ref(|span| span.start().to_usize() < limit)
-        .map(|s| *s)
+        .take_while_ref(|span| span.start().to_usize() < limit).copied()
         .collect::<Vec<_>>();
     c.drain(0..spans.len());
     spans.into_iter()
@@ -66,14 +65,14 @@ pub enum CommentType {
 pub fn comment_type(content: &str) -> Result<CommentType> {
     let t = if content.starts_with("//") {
         let remaining = content.strip_prefix("//").unwrap();
-        if remaining.starts_with("/") && !remaining.starts_with("//") {
+        if remaining.starts_with('/') && !remaining.starts_with("//") {
             CommentType::DocLine
         } else {
             CommentType::Line
         }
     } else if content.starts_with("/*") {
         let remaining = content.strip_prefix("/*").unwrap();
-        if remaining.starts_with("*") && !remaining.starts_with("**") {
+        if remaining.starts_with('*') && !remaining.starts_with("**") {
             CommentType::DocBlock
         } else {
             CommentType::Block

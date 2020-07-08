@@ -89,7 +89,7 @@ impl FromStr for FmtTestCommand {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let left = strip(s.trim(), "//!").and_then(|s| strip(s.trim(), "new-fmt"));
         if let Some(l) = left {
-            ensure!(l.trim().len() == 0, "invalid new-fmt declaration");
+            ensure!(l.trim().is_empty(), "invalid new-fmt declaration");
         } else {
             bail!("cannot parse to fmt command, expect //! new-fmt");
         }

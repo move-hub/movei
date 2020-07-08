@@ -3,7 +3,7 @@ mod command;
 
 use anyhow::Result;
 use color_diff::color_diff;
-use env_logger;
+
 use move_lang::parser;
 use movei_fmt::{format, Formatter};
 use movei_test::command_parser;
@@ -48,8 +48,9 @@ pub fn functional_test(p: &Path) -> datatest::Result<()> {
 fn run_fmt(width: u64, indent: usize, text: &str) -> Result<()> {
     let text = text.trim();
     let (stripped, comments) = move_lang::strip_comments_and_verify("test", text).unwrap();
+    // TODO: filter out doc comments
     let (defs, _comments) =
-        parser::syntax::parse_file_string("test", stripped.as_str(), comments.clone()).unwrap();
+        parser::syntax::parse_file_string("test", stripped.as_str(), Default::default()).unwrap();
     let def = defs.first().unwrap();
     let formatter = Formatter::new(text, comments, indent);
     let doc = formatter.definition(def);

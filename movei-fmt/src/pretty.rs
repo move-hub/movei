@@ -88,7 +88,7 @@ impl<D: Documentable> Documentable for Option<D> {
 }
 
 pub fn concat(mut docs: impl Iterator<Item = Document>) -> Document {
-    let init = docs.next().unwrap_or_else(|| nil());
+    let init = docs.next().unwrap_or_else(nil);
     docs.fold(init, |acc, doc| acc.append(doc))
 }
 
@@ -317,11 +317,13 @@ pub fn lines(i: usize) -> Document {
     Document::Line(i)
 }
 
+#[allow(unused)]
 #[inline]
 pub fn force_break() -> Document {
     Document::ForceBreak
 }
 
+#[allow(unused)]
 #[inline]
 pub fn break_(broken: &str, unbroken: &str) -> Document {
     Document::Break {
@@ -338,6 +340,7 @@ pub fn delim(d: &str) -> Document {
     }
 }
 
+#[allow(unused)]
 #[inline]
 pub fn flex_group(label: String, ident: isize, d: impl Documentable) -> Document {
     Document::FlexGroup(label, ident, Box::new(d.to_doc()))

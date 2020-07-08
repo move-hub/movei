@@ -5,7 +5,6 @@ mod host_config;
 
 use crate::context::MoveiContext;
 use anyhow::{Error, Result};
-use bytecode_verifier::VerifiedModule;
 use clap::Clap;
 use dialect::MoveDialect;
 use libra_types::{account_address::AccountAddress, transaction::TransactionArgument};
@@ -19,7 +18,6 @@ use move_vm_types::{gas_schedule::CostStrategy, values::Value};
 use movei_executor::{change_set::Change, state::FakeDataStore, txn_cache::TransactionDataCache};
 use resource_viewer::MoveValueAnnotator;
 use std::{collections::HashMap, convert::TryFrom};
-use vm::access::ModuleAccess;
 
 #[derive(Clap, Debug)]
 pub struct RunArgs {
@@ -78,18 +76,12 @@ pub fn run(args: RunArgs, context: MoveiContext) -> Result<()> {
         Ok(units) => units,
     };
 
-    let mut verified_modules = vec![];
+    let mut compiled_modules = vec![];
     let mut main = None;
     for unit in compile_units {
         let _is_module = match unit {
-            CompiledUnit::Module { module, .. } => match VerifiedModule::new(module) {
-                Err((m, err)) => {
-                    println!("{:?} at {:?}", err, m.self_id());
-                }
-                Ok(verified_module) => {
-                    verified_modules.push(verified_module);
-                }
-            },
+            CompiledUnit::Module { module, .. } => compiled_modules.push(module),
+
             _ => {
                 main = Some(unit.serialize());
             }
@@ -101,8 +93,8 @@ pub fn run(args: RunArgs, context: MoveiContext) -> Result<()> {
     let mut data_store = FakeDataStore::new(HashMap::new());
     data_store.add_write_set(dialect.genesis());
     // cache modules
-    for verified_module in verified_modules.iter() {
-        data_store.add_module(&verified_module.self_id(), verified_module.as_inner());
+    for compiled_module in compiled_modules.iter() {
+        data_store.add_module(&compiled_module.self_id(), compiled_module);
     }
     let cost_table = dialect.cost_table();
     let mut chain_state = TransactionDataCache::new(&data_store);
