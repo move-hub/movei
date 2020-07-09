@@ -12,12 +12,15 @@ pub use pretty::format;
 use crate::{
     comments::{Comment, Comments},
     lang_items::LangItem,
-    pretty::{break_, concat, group, line, lines, nest, nil, space, Document, Documentable},
+    pretty::{break_, concat, delim, group, line, lines, nest, nil, space, Document, Documentable},
 };
 use itertools::Itertools;
 use move_ir_types::location::Loc;
 use move_lang::{
-    parser::{ast, ast::Type_},
+    parser::{
+        ast,
+        ast::{SpecBlockTarget_, Type_},
+    },
     shared::{Address, Identifier, Name},
     FileCommentMap,
 };
@@ -88,7 +91,9 @@ impl<'a> Formatter<'a> {
         addr: &Address,
         modules: &[ast::ModuleDefinition],
     ) -> Document {
-        let comments = self.pop_doc_comments(loc.span().start().to_usize());
+        let comments = self.pop_regular_comments(loc.span().start().to_usize());
+        let doc_comments = self.pop_doc_comments(loc.span().start().to_usize());
+        let comments = comments.chain(doc_comments);
 
         let header = "address ".to_doc().append(format!("{}", addr).to_doc());
         let modules = concat(modules.iter().map(|m| self.module(m)).intersperse(lines(2)));
@@ -166,10 +171,9 @@ impl<'a> Formatter<'a> {
             let loc = item.loc();
             let regular_comments = self.pop_regular_comments(loc.span().start().to_usize());
             let item_comments = self.pop_doc_comments(item.loc().span().start().to_usize());
-            let commented_item = commented(
-                regular_comments,
-                commented(item_comments, self.lang_item(item)),
-            );
+            let commented_item =
+                commented(regular_comments.chain(item_comments), self.lang_item(item));
+
             body = body.append(commented_item);
             if let Some(after) = peekable_items.peek() {
                 match (item, after) {
@@ -200,8 +204,196 @@ impl<'a> Formatter<'a> {
             LangItem::Constant(c) => self.constant_(c),
             LangItem::Use(u) => self.use_(u),
             LangItem::Struct(s) => self.struct_(s),
-            LangItem::Spec(_s) => nil(),
+            LangItem::Spec(s) => self.spec_block_(s),
         }
+    }
+
+    //// Spec Block
+
+    fn spec_block_(&self, s: &ast::SpecBlock) -> Document {
+        use ast::SpecBlockTarget_ as T;
+        let _loc = s.loc;
+        let ast::SpecBlock_ {
+            target,
+            uses,
+            members,
+        } = &s.value;
+
+        let target = match &target.value {
+            T::Code => nil(),
+
+            SpecBlockTarget_::Module => "module".to_doc(),
+            SpecBlockTarget_::Function(n) => "fun ".to_doc().append(n),
+            SpecBlockTarget_::Structure(n) => "struct ".to_doc().append(n),
+            SpecBlockTarget_::Schema(n, tys) => {
+                let tys = if tys.is_empty() {
+                    nil()
+                } else {
+                    wrap_list(
+                        "<",
+                        ">",
+                        ",",
+                        self.indent,
+                        tys.iter().map(|p| self.type_parameter_(p)),
+                    )
+                    .group("schema_tys")
+                };
+                "schema ".to_doc().append(n).append(tys)
+            }
+        };
+        let has_use = !uses.is_empty();
+
+        let uses = uses.iter().map(|u| self.use_(u)).intersperse(line());
+        let members = concat(
+            members
+                .iter()
+                .map(|m| self.spec_member_(m))
+                .intersperse(line()),
+        );
+
+        let sep_lines = if has_use { Some(lines(2)) } else { None };
+
+        let items = concat(uses).append(sep_lines).append(members);
+
+        let spec_body = line()
+            .append(items)
+            .nest(self.indent)
+            .surround("{", line().append("}"));
+        concats!("spec ", target, " ", spec_body)
+    }
+
+    fn spec_member_(&self, member: &ast::SpecBlockMember) -> Document {
+        use ast::SpecBlockMember_ as M;
+        let loc = member.loc;
+        let comments = self.pop_doc_comments(loc.span().start().to_usize());
+
+        let memebr = match &member.value {
+            M::Condition { kind, exp } => {
+                let exp = self.exp_(exp);
+                let breakable_exp = break_("", " ")
+                    .append(exp.flex_break("exp"))
+                    .nest(self.indent);
+                concats!(kind, breakable_exp, ";").group("spec_condition")
+            }
+            M::Function {
+                uninterpreted,
+                signature,
+                name,
+                body,
+            } => {
+                let modifier = if *uninterpreted {
+                    "uninterpreted"
+                } else if let ast::FunctionBody_::Native = &body.value {
+                    "native"
+                } else {
+                    ""
+                };
+                let signature = self.fn_signature_(signature);
+                let body = self.fn_body_(body);
+                concats!(modifier, " ", "fun", " ", name, signature, body).group("spec_function")
+            }
+            M::Variable {
+                is_global,
+                name,
+                type_parameters,
+                type_,
+            } => {
+                let modifier = if *is_global { "global" } else { "local" };
+
+                let tys = self
+                    .type_parameters_(type_parameters)
+                    .unwrap_or(nil())
+                    .group("tys");
+                // group type_ to let tys break first.
+                let type_ = self.type_(type_).group("type");
+                concats!(modifier, " ", name, tys, ": ", type_, ";").group("spec_variable")
+            }
+            M::Include { exp } => {
+                let exp = self.exp_(exp);
+                concats!("include ", exp, ";").group("spec_include")
+            }
+            M::Apply {
+                exp,
+                patterns,
+                exclusion_patterns,
+            } => {
+                let exp = self.exp_(exp);
+
+                let patterns = if !patterns.is_empty() {
+                    let patterns = concat(
+                        patterns
+                            .iter()
+                            .map(|p| self.spec_apply_pattern_(p).group("pattern"))
+                            .intersperse(delim(",")),
+                    );
+                    break_("", " ")
+                        .append("to")
+                        .append((break_("", " ")).append(patterns).nest(self.indent))
+                        .flex_break("apply_patterns")
+                } else {
+                    nil()
+                };
+
+                let exclusion_patterns = if !exclusion_patterns.is_empty() {
+                    let exclusion_patterns = concat(
+                        exclusion_patterns
+                            .iter()
+                            .map(|p| self.spec_apply_pattern_(p).group("exclusion_pattern"))
+                            .intersperse(delim(",")),
+                    );
+                    break_("", " ")
+                        .append("except")
+                        .append(
+                            (break_("", " "))
+                                .append(exclusion_patterns)
+                                .nest(self.indent),
+                        )
+                        .flex_break("apply_exclusion_patterns")
+                } else {
+                    nil()
+                };
+
+                concats!(
+                    "apply ",
+                    exp.group("apply_exp"),
+                    patterns,
+                    exclusion_patterns,
+                    ";"
+                )
+                .group("spec_apply")
+            }
+            M::Pragma { properties } => {
+                let properties = concat(
+                    properties
+                        .iter()
+                        .map(|p| p.to_doc())
+                        .intersperse(delim(",")),
+                );
+                break_("pragma", "pragma ")
+                    .append(properties)
+                    .nest(self.indent)
+                    .append(";")
+                    .group("spec_pragma")
+            }
+        };
+
+        commented(comments, memebr)
+    }
+    fn spec_apply_pattern_(&self, p: &ast::SpecApplyPattern) -> Document {
+        let ast::SpecApplyPattern_ {
+            visibility,
+            name_pattern,
+
+            type_parameters,
+        } = &p.value;
+        let visibility = match visibility {
+            Some(ast::FunctionVisibility::Public(_)) => "public",
+            Some(ast::FunctionVisibility::Internal) => "internal",
+            None => "",
+        };
+        let name_pattern = concat(name_pattern.iter().map(|f| f.to_doc()));
+        let tys = self.type_parameters_(type_parameters);
+        concats!(visibility, name_pattern, tys)
     }
 
     fn struct_(&self, s: &ast::StructDefinition) -> Document {
@@ -353,18 +545,22 @@ impl<'a> Formatter<'a> {
         func.group("func".to_string())
     }
 
+    fn type_parameters_(&self, tys: &[(Name, ast::Kind)]) -> Option<Document> {
+        if tys.is_empty() {
+            None
+        } else {
+            let type_parameters = tys.iter().map(|t| self.type_parameter_(t));
+            Some(wrap_list("<", ">", ",", self.indent, type_parameters))
+        }
+    }
+
     fn fn_signature_(&self, fn_signature: &ast::FunctionSignature) -> Document {
         let ast::FunctionSignature {
             type_parameters,
             parameters,
             return_type,
         } = fn_signature;
-        let type_items = if type_parameters.is_empty() {
-            nil()
-        } else {
-            let type_parameters = type_parameters.iter().map(|t| self.type_parameter_(t));
-            wrap_list("<", ">", ",", self.indent, type_parameters)
-        };
+        let type_items = self.type_parameters_(type_parameters).unwrap_or(nil());
 
         let param_items = wrap_list(
             "(",
@@ -611,8 +807,10 @@ impl<'a> Formatter<'a> {
                     l.flex_break("left_exp"),
                     " ",
                     op,
-                    break_("", " ").nest(self.indent),
-                    r.flex_break("right_exp")
+                    break_("", " ")
+                        .append(r)
+                        .nest(self.indent)
+                        .flex_break("right_exp")
                 )
             }
             E::Borrow(mut_, e) => {
@@ -893,6 +1091,44 @@ impl Documentable for ast::Value_ {
             V::ByteString(s) => format!("b\"{}\"", s),
         };
         s.to_doc()
+    }
+}
+
+impl Documentable for ast::SpecConditionKind {
+    fn to_doc(&self) -> Document {
+        use ast::SpecConditionKind::*;
+        match self {
+            Assert => "assert",
+            Assume => "assume",
+            Decreases => "decreases",
+            AbortsIf => "aborts_if",
+            SucceedsIf => "succeeds_if",
+            Ensures => "ensures",
+            Requires => "requires",
+            RequiresModule => "requires module",
+            Invariant => "invariant",
+            InvariantUpdate => "invariant update",
+            InvariantPack => "invariant pack",
+            InvariantUnpack => "invariant unpack",
+            InvariantModule => "invariant module",
+        }
+        .to_doc()
+    }
+}
+
+impl Documentable for ast::SpecApplyFragment_ {
+    fn to_doc(&self) -> Document {
+        use ast::SpecApplyFragment_ as F;
+        match self {
+            F::Wildcard => "*".to_doc(),
+            F::NamePart(n) => n.to_doc(),
+        }
+    }
+}
+impl Documentable for ast::PragmaProperty_ {
+    fn to_doc(&self) -> Document {
+        let value = self.value.as_ref().map(|v| " = ".to_doc().append(v));
+        self.name.to_doc().append(value)
     }
 }
 
