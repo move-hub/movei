@@ -6,8 +6,8 @@
 
 /// The implementation is Copied from gleam-lang source repo.
 /// All right reserved to gleam-lang team.
-use im::vector::Vector;
 use itertools::Itertools;
+use rpds::List;
 
 pub trait Documentable {
     fn to_doc(&self) -> Document;
@@ -137,16 +137,17 @@ enum Mode {
     Unbroken,
 }
 
-fn fits(mut limit: isize, mut docs: Vector<(isize, Mode, Document)>) -> bool {
+fn fits(mut limit: isize, mut docs: List<(isize, Mode, Document)>) -> bool {
     loop {
         if limit < 0 {
             return false;
         };
 
-        let (indent, mode, document) = match docs.pop_front() {
+        let (indent, mode, document) = match docs.first().cloned() {
             Some(x) => x,
             None => return true,
         };
+        docs.drop_first_mut();
 
         match document {
             Document::Nil => (),
@@ -155,13 +156,13 @@ fn fits(mut limit: isize, mut docs: Vector<(isize, Mode, Document)>) -> bool {
 
             Document::ForceBreak => return false,
 
-            Document::FlexGroup(_, i, doc) => docs.push_front((i + indent, mode, *doc)),
+            Document::FlexGroup(_, i, doc) => docs.push_front_mut((i + indent, mode, *doc)),
 
-            Document::Nest(i, doc) => docs.push_front((i + indent, mode, *doc)),
+            Document::Nest(i, doc) => docs.push_front_mut((i + indent, mode, *doc)),
 
-            Document::NestCurrent(doc) => docs.push_front((indent, mode, *doc)),
+            Document::NestCurrent(doc) => docs.push_front_mut((indent, mode, *doc)),
 
-            Document::Group(_, doc) => docs.push_front((indent, Mode::Unbroken, *doc)),
+            Document::Group(_, doc) => docs.push_front_mut((indent, Mode::Unbroken, *doc)),
 
             Document::Text(s) => limit -= s.len() as isize,
 
@@ -170,11 +171,11 @@ fn fits(mut limit: isize, mut docs: Vector<(isize, Mode, Document)>) -> bool {
                 Mode::Unbroken => limit -= unbroken.len() as isize,
             },
 
-            Document::FlexBreak(_, doc) => docs.push_front((indent, mode, *doc)),
+            Document::FlexBreak(_, doc) => docs.push_front_mut((indent, mode, *doc)),
 
             Document::Cons(left, right) => {
-                docs.push_front((indent, mode.clone(), *right));
-                docs.push_front((indent, mode, *left));
+                docs.push_front_mut((indent, mode.clone(), *right));
+                docs.push_front_mut((indent, mode, *left));
             }
         }
     }
@@ -186,7 +187,7 @@ pub fn format(limit: isize, doc: Document) -> String {
         &mut buffer,
         limit,
         0,
-        vector![(
+        list![(
             0,
             Mode::Unbroken,
             Document::Group("global".to_string(), Box::new(doc))
@@ -197,8 +198,9 @@ pub fn format(limit: isize, doc: Document) -> String {
     buffer.lines().map(|l| l.trim_end()).join("\n")
 }
 
-fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: Vector<(isize, Mode, Document)>) {
-    while let Some((indent, mode, document)) = docs.pop_front() {
+fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: List<(isize, Mode, Document)>) {
+    while let Some((indent, mode, document)) = docs.first().cloned() {
+        docs.drop_first_mut();
         match document {
             Document::Nil | Document::ForceBreak => (),
 
@@ -231,20 +233,20 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: Vector<(isize, 
             }
 
             Document::Cons(left, right) => {
-                docs.push_front((indent, mode.clone(), *right));
-                docs.push_front((indent, mode, *left));
+                docs.push_front_mut((indent, mode.clone(), *right));
+                docs.push_front_mut((indent, mode, *left));
             }
 
             Document::Nest(i, doc) => {
-                docs.push_front((indent + i, mode, *doc));
+                docs.push_front_mut((indent + i, mode, *doc));
             }
 
             Document::NestCurrent(doc) => {
-                docs.push_front((width, mode, *doc));
+                docs.push_front_mut((width, mode, *doc));
             }
 
             Document::Group(label, doc) => {
-                docs.push_front((indent, Mode::Unbroken, (*doc).clone()));
+                docs.push_front_mut((indent, Mode::Unbroken, (*doc).clone()));
                 let fitted = fits(limit - width, docs.clone());
                 trace!(
                     "{}group: {}, indent: {:?}, limit: {}, fit: {}",
@@ -255,13 +257,13 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: Vector<(isize, 
                     fitted
                 );
                 if !fitted {
-                    docs.pop_front();
-                    docs.push_front((indent, Mode::Broken, (*doc).clone()));
+                    docs.drop_first_mut();
+                    docs.push_front_mut((indent, Mode::Broken, *doc));
                 }
             }
 
             Document::FlexBreak(label, doc) => {
-                docs.push_front((indent, Mode::Unbroken, (*doc).clone()));
+                docs.push_front_mut((indent, Mode::Unbroken, (*doc).clone()));
                 let fitted = fits(limit - width, docs.clone());
                 trace!(
                     "{}flexbreak: {}, indent: {:?}, limit: {}, fit: {}",
@@ -272,13 +274,13 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: Vector<(isize, 
                     fitted
                 );
                 if !fitted {
-                    docs.pop_front();
-                    docs.push_front((indent, Mode::Broken, (*doc).clone()));
+                    docs.drop_first_mut();
+                    docs.push_front_mut((indent, Mode::Broken, (*doc)));
                 }
             }
 
             Document::FlexGroup(label, i, doc) => {
-                docs.push_front((indent, Mode::Unbroken, (*doc).clone()));
+                docs.push_front_mut((indent, Mode::Unbroken, (*doc).clone()));
                 let fitted = fits(limit - width, docs.clone());
                 trace!(
                     "{}flexgroup: {}, indent: {:?}, limit: {}, fit: {}",
@@ -289,9 +291,9 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: Vector<(isize, 
                     fitted
                 );
                 if !fitted {
-                    docs.pop_front();
-                    docs.push_front((indent, Mode::Broken, line()));
-                    docs.push_front((indent + i, Mode::Broken, line().append((*doc).clone())));
+                    docs.drop_first_mut();
+                    docs.push_front_mut((indent, Mode::Broken, line()));
+                    docs.push_front_mut((indent + i, Mode::Broken, line().append(*doc)));
                 }
             }
         }
@@ -415,19 +417,19 @@ mod tests {
         use super::{Document::*, Mode::*, *};
 
         // Negative limits never fit
-        assert!(!fits(-1, vector![]));
+        assert!(!fits(-1, list![]));
 
         // If no more documents it always fits
-        assert!(fits(0, vector![]));
+        assert!(fits(0, list![]));
 
         // ForceBreak never fits
-        assert!(!fits(100, vector![(0, Unbroken, ForceBreak)]));
-        assert!(!fits(100, vector![(0, Broken, ForceBreak)]));
+        assert!(!fits(100, list![(0, Unbroken, ForceBreak)]));
+        assert!(!fits(100, list![(0, Broken, ForceBreak)]));
 
         // Break in Broken fits always
         assert!(fits(
             1,
-            vector![(
+            list![(
                 0,
                 Broken,
                 Break {
@@ -440,7 +442,7 @@ mod tests {
         // Break in Unbroken mode fits if `unbroken` fits
         assert!(fits(
             3,
-            vector![(
+            list![(
                 0,
                 Unbroken,
                 Break {
@@ -451,7 +453,7 @@ mod tests {
         ));
         assert!(!fits(
             2,
-            vector![(
+            list![(
                 0,
                 Unbroken,
                 Break {
@@ -462,19 +464,19 @@ mod tests {
         ));
 
         // Line always fits
-        assert!(fits(0, vector![(0, Broken, Line(100))]));
-        assert!(fits(0, vector![(0, Unbroken, Line(100))]));
+        assert!(fits(0, list![(0, Broken, Line(100))]));
+        assert!(fits(0, list![(0, Unbroken, Line(100))]));
 
         // String fits if smaller than limit
-        assert!(fits(5, vector![(0, Broken, Text("Hello".to_string()))]));
-        assert!(fits(5, vector![(0, Unbroken, Text("Hello".to_string()))]));
-        assert!(!fits(4, vector![(0, Broken, Text("Hello".to_string()))]));
-        assert!(!fits(4, vector![(0, Unbroken, Text("Hello".to_string()))]));
+        assert!(fits(5, list![(0, Broken, Text("Hello".to_string()))]));
+        assert!(fits(5, list![(0, Unbroken, Text("Hello".to_string()))]));
+        assert!(!fits(4, list![(0, Broken, Text("Hello".to_string()))]));
+        assert!(!fits(4, list![(0, Unbroken, Text("Hello".to_string()))]));
 
         // Cons fits if combined smaller than limit
         assert!(fits(
             2,
-            vector![(
+            list![(
                 0,
                 Broken,
                 Cons(
@@ -485,7 +487,7 @@ mod tests {
         ));
         assert!(fits(
             2,
-            vector![(
+            list![(
                 0,
                 Unbroken,
                 Cons(
@@ -496,7 +498,7 @@ mod tests {
         ));
         assert!(!fits(
             1,
-            vector![(
+            list![(
                 0,
                 Broken,
                 Cons(
@@ -507,7 +509,7 @@ mod tests {
         ));
         assert!(!fits(
             1,
-            vector![(
+            list![(
                 0,
                 Unbroken,
                 Cons(
@@ -520,37 +522,37 @@ mod tests {
         // Nest fits if combined smaller than limit
         assert!(fits(
             2,
-            vector![(0, Broken, Nest(1, Box::new(Text("12".to_string())),))]
+            list![(0, Broken, Nest(1, Box::new(Text("12".to_string())),))]
         ));
         assert!(fits(
             2,
-            vector![(0, Unbroken, Nest(1, Box::new(Text("12".to_string())),))]
+            list![(0, Unbroken, Nest(1, Box::new(Text("12".to_string())),))]
         ));
         assert!(!fits(
             1,
-            vector![(0, Broken, Nest(1, Box::new(Text("12".to_string())),))]
+            list![(0, Broken, Nest(1, Box::new(Text("12".to_string())),))]
         ));
         assert!(!fits(
             1,
-            vector![(0, Unbroken, Nest(1, Box::new(Text("12".to_string()))))]
+            list![(0, Unbroken, Nest(1, Box::new(Text("12".to_string()))))]
         ));
 
         // Nest fits if combined smaller than limit
         assert!(fits(
             2,
-            vector![(0, Broken, NestCurrent(Box::new(Text("12".to_string())),))]
+            list![(0, Broken, NestCurrent(Box::new(Text("12".to_string())),))]
         ));
         assert!(fits(
             2,
-            vector![(0, Unbroken, NestCurrent(Box::new(Text("12".to_string())),))]
+            list![(0, Unbroken, NestCurrent(Box::new(Text("12".to_string())),))]
         ));
         assert!(!fits(
             1,
-            vector![(0, Broken, NestCurrent(Box::new(Text("12".to_string())),))]
+            list![(0, Broken, NestCurrent(Box::new(Text("12".to_string())),))]
         ));
         assert!(!fits(
             1,
-            vector![(0, Unbroken, NestCurrent(Box::new(Text("12".to_string()))))]
+            list![(0, Unbroken, NestCurrent(Box::new(Text("12".to_string()))))]
         ));
     }
 

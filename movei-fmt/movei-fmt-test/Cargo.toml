@@ -19,7 +19,14 @@ movei-fmt = {path = "../../movei-fmt"}
 datatest = {path = "../../datatest"}
 movei-test = {path = "../../movei-test"}
 
+
+[dev-dependencies]
+criterion = "0.3"
+
 [[test]]
 name = "testsuite"
 harness = false
 
+[[bench]]
+name = "bench_fmt"
+harness = false

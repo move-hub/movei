@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate im;
+extern crate rpds;
 #[macro_use]
 extern crate log;
 
