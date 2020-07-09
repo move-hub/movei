@@ -69,7 +69,7 @@ impl<'a> Formatter<'a> {
     }
 }
 
-macro_rules! concats {
+macro_rules! cons {
     ($($doc:expr),*) => {{
         Document::Nil$(
             .append($doc)
@@ -345,7 +345,7 @@ impl<'a> Formatter<'a> {
             .append(items)
             .nest(self.indent)
             .surround("{", line().append("}"));
-        concats!("spec ", target, " ", spec_body)
+        cons!("spec ", target, " ", spec_body)
     }
 
     fn spec_member_(&self, member: &ast::SpecBlockMember) -> Document {
@@ -356,7 +356,7 @@ impl<'a> Formatter<'a> {
                 let breakable_exp = break_("", " ")
                     .append(exp.flex_break("exp"))
                     .nest(self.indent);
-                concats!(kind, breakable_exp, ";").group("spec_condition")
+                cons!(kind, breakable_exp, ";").group("spec_condition")
             }
             M::Function {
                 uninterpreted,
@@ -373,7 +373,7 @@ impl<'a> Formatter<'a> {
                 };
                 let signature = self.fn_signature_(signature);
                 let body = self.fn_body_(body);
-                concats!(modifier, " ", "define", " ", name, signature, body).group("spec_function")
+                cons!(modifier, " ", "define", " ", name, signature, body).group("spec_function")
             }
             M::Variable {
                 is_global,
@@ -389,11 +389,11 @@ impl<'a> Formatter<'a> {
                     .group("tys");
                 // group type_ to let tys break first.
                 let type_ = self.type_(type_).group("type");
-                concats!(modifier, " ", name, tys, ": ", type_, ";").group("spec_variable")
+                cons!(modifier, " ", name, tys, ": ", type_, ";").group("spec_variable")
             }
             M::Include { exp } => {
                 let exp = self.exp_(exp);
-                concats!("include ", exp, ";").group("spec_include")
+                cons!("include ", exp, ";").group("spec_include")
             }
             M::Apply {
                 exp,
@@ -436,7 +436,7 @@ impl<'a> Formatter<'a> {
                     nil()
                 };
 
-                concats!(
+                cons!(
                     "apply ",
                     exp.group("apply_exp"),
                     patterns,
@@ -475,7 +475,7 @@ impl<'a> Formatter<'a> {
         };
         let name_pattern = concat(name_pattern.iter().map(|f| f.to_doc()));
         let tys = self.type_parameters_(type_parameters);
-        concats!(visibility, name_pattern, tys)
+        cons!(visibility, name_pattern, tys)
     }
 
     fn struct_(&self, s: &ast::StructDefinition) -> Document {
@@ -578,13 +578,13 @@ impl<'a> Formatter<'a> {
                 })
                 .append(";"),
             ast::Use::Members(module_indent, members) => {
-                let doc = concats!(doc, &module_indent.0.value, "::");
+                let doc = cons!(doc, &module_indent.0.value, "::");
 
                 let doc = match members.len().cmp(&1) {
                     std::cmp::Ordering::Less => nil(),
                     std::cmp::Ordering::Equal => {
                         let (member_name, alias) = members.first().unwrap();
-                        concats!(doc, use_member_(member_name, alias.as_ref()))
+                        cons!(doc, use_member_(member_name, alias.as_ref()))
                     }
                     _ => {
                         let members = wrap_args(
@@ -596,10 +596,10 @@ impl<'a> Formatter<'a> {
                                 .iter()
                                 .map(|(name, alias)| use_member_(name, alias.as_ref())),
                         );
-                        concats!(doc, members)
+                        cons!(doc, members)
                     }
                 };
-                concats!(doc, ";")
+                cons!(doc, ";")
             }
         }
     }
@@ -666,9 +666,9 @@ impl<'a> Formatter<'a> {
             nil()
         } else {
             let return_type = self.type_(return_type);
-            concats!(": ", return_type)
+            cons!(": ", return_type)
         };
-        concats! {
+        cons! {
             type_items.flex_break("type_parameters".to_string()),
             param_items.flex_break("parameters".to_string()),
             ret
@@ -683,7 +683,7 @@ impl<'a> Formatter<'a> {
             K::Affine => ": copyable".to_doc(),
             K::Copyable => panic!("ICE 'copyable' kind constraint"),
         };
-        concats!(n, k)
+        cons!(n, k)
     }
     fn fn_parameter_(&self, parameter: &(ast::Var, ast::Type)) -> Document {
         let (n, t) = parameter;
@@ -725,7 +725,7 @@ impl<'a> Formatter<'a> {
         } = constant;
         let signature = self.type_(signature);
         let value = self.exp_(value);
-        concats!("const ", &name.0, ": ", signature, " = ", value, ";")
+        cons!("const ", &name.0, ": ", signature, " = ", value, ";")
     }
 
     fn type_(&self, ty: &ast::Type) -> Document {
@@ -743,12 +743,12 @@ impl<'a> Formatter<'a> {
                     wrap_list("<", ">", ",", self.indent, ss)
                 };
 
-                concats!(module_access.as_ref(), tys.flex_break("apply_type"))
+                cons!(module_access.as_ref(), tys.flex_break("apply_type"))
             }
             Type_::Ref(mut_, s) => {
                 let prefix = if *mut_ { "&mut " } else { "&" };
                 let s = self.type_(s.as_ref());
-                concats!(prefix, s)
+                cons!(prefix, s)
             }
             Type_::Fun(args, ret) => {
                 let args = args.iter().map(|t| self.type_(t));
@@ -767,8 +767,8 @@ impl<'a> Formatter<'a> {
             E::Unit => "()".to_doc(),
             E::Value(v) => v.to_doc(),
             E::InferredNum(u) => u.to_doc(),
-            E::Move(v) => concats!("move ", v),
-            E::Copy(v) => concats!("copy ", v),
+            E::Move(v) => cons!("move ", v),
+            E::Copy(v) => cons!("copy ", v),
             E::Name(ma, tys_opt) => {
                 let tys = if let Some(ss) = tys_opt {
                     wrap_list("<", ">", ",", self.indent, ss.iter().map(|s| self.type_(s)))
@@ -834,16 +834,16 @@ impl<'a> Formatter<'a> {
                 //     .append(t);
                 //
                 let else_part = if let Some(f) = f_opt {
-                    concats!(" else ", f)
+                    cons!(" else ", f)
                 } else {
                     nil()
                 };
-                concats!("if ", "(", b, ") ", t, else_part).flex_break("if-else")
+                cons!("if ", "(", b, ") ", t, else_part).flex_break("if-else")
             }
             E::While(b, e) => {
                 let b = self.exp_(b.as_ref());
                 let e = self.exp_(e.as_ref());
-                concats!("while ", "(", b, ")", e)
+                cons!("while ", "(", b, ")", e)
                 // "while "
                 //     .to_doc()
                 //     .append(nest(self.indent, break_("(", "(").append(b)))
@@ -852,14 +852,14 @@ impl<'a> Formatter<'a> {
             }
             E::Loop(e) => {
                 let e = self.exp_(e.as_ref());
-                concats!("loop ", e)
+                cons!("loop ", e)
             }
             E::Block(seq) => self.sequence_(exp.loc, seq),
             E::Lambda(bs, e) => {
                 let bs = bs.value.iter().map(|b| self.bind_(b));
                 let bindlist = wrap_list("|", "|", ",", self.indent, bs);
                 let e = self.exp_(e.as_ref());
-                concats!("fun ", bindlist, " ", e).flex_break("lambda")
+                cons!("fun ", bindlist, " ", e).flex_break("lambda")
             }
             E::ExpList(es) => {
                 let es = es.iter().map(|e| self.exp_(e));
@@ -868,34 +868,34 @@ impl<'a> Formatter<'a> {
             E::Assign(lvalue, rhs) => {
                 let lvalue = self.exp_(lvalue.as_ref());
                 let rhs = self.exp_(rhs.as_ref());
-                concats!(lvalue, break_(" =", " = ").nest(self.indent), rhs).flex_break("assign")
+                cons!(lvalue, break_(" =", " = ").nest(self.indent), rhs).flex_break("assign")
             }
             E::Return(e) => {
                 let e = e.as_ref().map(|e| self.exp_(e.as_ref()));
                 if let Some(v) = e {
-                    concats!("return ", v)
+                    cons!("return ", v)
                 } else {
                     "return".to_doc()
                 }
             }
             E::Abort(e) => {
                 let e = self.exp_(e.as_ref());
-                concats!("abort ", e)
+                cons!("abort ", e)
             }
             E::Break => "break".to_doc(),
             E::Continue => "continue".to_doc(),
             E::Dereference(e) => {
                 let e = self.exp_(e.as_ref());
-                concats!("*", e)
+                cons!("*", e)
             }
             E::UnaryExp(op, e) => {
                 let e = self.exp_(e.as_ref());
-                concats!(op, e)
+                cons!(op, e)
             }
             E::BinopExp(l, op, r) => {
                 let l = self.exp_(l.as_ref());
                 let r = self.exp_(r.as_ref());
-                concats!(
+                cons!(
                     l.flex_break("left_exp"),
                     " ",
                     op,
@@ -908,26 +908,26 @@ impl<'a> Formatter<'a> {
             E::Borrow(mut_, e) => {
                 let mut_sign = if *mut_ { "&mut " } else { "&" };
                 let e = self.exp_(e.as_ref());
-                concats!(mut_sign, e)
+                cons!(mut_sign, e)
             }
             E::Dot(e, n) => {
                 let e = self.exp_(e.as_ref());
-                concats!(e, ".", n)
+                cons!(e, ".", n)
             }
             E::Cast(e, ty) => {
                 let e = self.exp_(e.as_ref());
                 let ty = self.type_(ty);
-                concats!("(", e, " as ", ty, ")")
+                cons!("(", e, " as ", ty, ")")
             }
             E::Index(e, i) => {
                 let e = self.exp_(e.as_ref());
                 let i = self.exp_(i.as_ref());
-                concats!(e, "[", i, "]")
+                cons!(e, "[", i, "]")
             }
             E::Annotate(e, ty) => {
                 let e = self.exp_(e.as_ref());
                 let ty = self.type_(ty);
-                concats!("(", e, ": ", ty, ")")
+                cons!("(", e, ": ", ty, ")")
             }
             E::Spec(_s) => todo!(),
             E::UnresolvedError => "_|_".to_doc(),
@@ -1047,7 +1047,7 @@ impl<'a> Formatter<'a> {
                     nil()
                 };
                 let e = self.exp_(e.as_ref());
-                concats!("let ", bs, ty_opt, " = ", e)
+                cons!("let ", bs, ty_opt, " = ", e)
             }
             S::Declare(bs, ty_opt) => {
                 let bs = if bs.value.len() == 1 {
@@ -1067,7 +1067,7 @@ impl<'a> Formatter<'a> {
                 } else {
                     nil()
                 };
-                concats!("let ", bs, ty_opt)
+                cons!("let ", bs, ty_opt)
             }
         };
         doc.append(";").group("sequence_item".to_string())
