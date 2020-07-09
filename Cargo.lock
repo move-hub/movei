@@ -262,8 +262,8 @@ version = "0.1.0"
 source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
- "codespan",
- "codespan-reporting",
+ "codespan 0.8.0",
+ "codespan-reporting 0.8.0",
  "libra-canonical-serialization",
  "libra-types",
  "libra-workspace-hack",
@@ -416,12 +416,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "codespan"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ebaf6bb6a863ad6aa3a18729e9710c53d75df03306714d9cc1f7357a00cd789"
+dependencies = [
+ "codespan-reporting 0.9.5",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "600c3317d4705222ff820139aaa76a3a208024ffc41f894da565a4c3b949d4c9"
 dependencies = [
- "codespan",
+ "codespan 0.8.0",
+ "termcolor",
+ "unicode-width",
+]
+
+[[package]]
+name = "codespan-reporting"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e0762455306b1ed42bc651ef6a2197aabda5e1d4a43c34d5eab5c1a3634e81d"
+dependencies = [
  "termcolor",
  "unicode-width",
 ]
@@ -701,8 +720,8 @@ version = "0.1.0"
 source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
- "codespan",
- "codespan-reporting",
+ "codespan 0.8.0",
+ "codespan-reporting 0.8.0",
  "itertools",
  "libra-workspace-hack",
  "log 0.4.8",
@@ -1295,8 +1314,8 @@ source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944
 dependencies = [
  "anyhow",
  "bytecode-source-map",
- "codespan",
- "codespan-reporting",
+ "codespan 0.8.0",
+ "codespan-reporting 0.8.0",
  "ir-to-bytecode-syntax",
  "libra-types",
  "libra-workspace-hack",
@@ -1313,7 +1332,7 @@ version = "0.1.0"
 source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
- "codespan",
+ "codespan 0.8.0",
  "hex",
  "libra-types",
  "libra-workspace-hack",
@@ -1906,7 +1925,7 @@ version = "0.1.0"
 source = "git+https://github.com/move-hub/libra?branch=movei#68ba00f2566bb9e3944929e1dd90ee9f522c0729"
 dependencies = [
  "anyhow",
- "codespan",
+ "codespan 0.8.0",
  "hex",
  "libra-types",
  "libra-workspace-hack",
@@ -1924,8 +1943,8 @@ dependencies = [
  "borrow-graph",
  "bytecode-source-map",
  "bytecode-verifier",
- "codespan",
- "codespan-reporting",
+ "codespan 0.8.0",
+ "codespan-reporting 0.8.0",
  "datatest-stable",
  "difference",
  "hex",
@@ -1951,8 +1970,8 @@ dependencies = [
  "anyhow",
  "bytecode-source-map",
  "clap 2.33.1",
- "codespan",
- "codespan-reporting",
+ "codespan 0.8.0",
+ "codespan-reporting 0.8.0",
  "docgen",
  "handlebars",
  "itertools",
@@ -2076,7 +2095,7 @@ name = "movei-fmt"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "codespan",
+ "codespan 0.9.5",
  "im",
  "itertools",
  "log 0.4.8",
@@ -3333,8 +3352,8 @@ dependencies = [
  "anyhow",
  "bytecode-source-map",
  "bytecode-verifier",
- "codespan",
- "codespan-reporting",
+ "codespan 0.8.0",
+ "codespan-reporting 0.8.0",
  "itertools",
  "libra-types",
  "libra-workspace-hack",
