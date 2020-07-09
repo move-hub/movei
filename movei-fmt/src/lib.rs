@@ -14,6 +14,7 @@ use crate::{
     lang_items::LangItem,
     pretty::{break_, concat, delim, group, line, lines, nest, nil, space, Document, Documentable},
 };
+use codespan::{ByteIndex, Span};
 use itertools::Itertools;
 use move_ir_types::location::Loc;
 use move_lang::{
@@ -21,10 +22,10 @@ use move_lang::{
         ast,
         ast::{SpecBlockTarget_, Type_},
     },
-    shared::{Address, Identifier, Name},
+    shared::{Address, Name},
     FileCommentMap,
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, convert::TryFrom};
 
 pub struct Formatter<'a> {
     inner: RefCell<Comments>,
@@ -34,7 +35,7 @@ pub struct Formatter<'a> {
 
 impl<'a> Formatter<'a> {
     pub fn new(source: &'a str, comment_map: FileCommentMap, indent: usize) -> Self {
-        let comments = Comments::new(source, comment_map.keys().cloned().collect_vec());
+        let comments = Comments::new(comment_map.keys().cloned().collect_vec());
 
         Self {
             inner: RefCell::new(comments),
@@ -42,25 +43,25 @@ impl<'a> Formatter<'a> {
             source,
         }
     }
-    /// Pop comments that occur before a byte-index in the source
-    fn pop_doc_comments(&self, limit: usize) -> impl Iterator<Item = Comment> {
-        self.inner
-            .borrow_mut()
-            .pop_doc_comments(limit)
-            .map(move |s| Comment {
-                span: s,
-                content: &self.source[s.start().to_usize()..s.end().to_usize()],
-            })
+
+    // pop comments before the `span`
+    fn pop_comments_before(&self, limit: usize) -> impl Iterator<Item = Comment> {
+        self.pop_comments_between(0, limit)
     }
 
-    fn pop_regular_comments(&self, limit: usize) -> impl Iterator<Item = Comment> {
+    // pop comments in span specified by `span_start` and `span_end`
+    fn pop_comments_between(
+        &self,
+        span_start: usize,
+        span_end: usize,
+    ) -> impl Iterator<Item = Comment> {
         self.inner
             .borrow_mut()
-            .pop_comments(limit)
-            .map(move |s| Comment {
-                span: s,
-                content: &self.source[s.start().to_usize()..s.end().to_usize()],
-            })
+            .pop_comments_between(Span::new(
+                ByteIndex(span_start as u32),
+                ByteIndex(span_end as u32),
+            ))
+            .map(move |s| Comment::try_from((s, self.source)).expect("Span should be comments"))
     }
 
     pub fn indent(&self) -> isize {
@@ -77,12 +78,71 @@ macro_rules! concats {
 }
 
 impl<'a> Formatter<'a> {
+    fn pretty_comments<'c>(&self, comments: impl Iterator<Item = Comment<'c>>) -> Option<Document> {
+        let mut comments = comments.peekable();
+        comments.peek()?;
+
+        let mut doc = nil();
+        // keep the lines between two comments
+        while let Some(c) = comments.next() {
+            doc = doc.append(c.content);
+            if let Some(next_comment) = comments.peek() {
+                let distance = self.source
+                    [c.span.end().to_usize()..next_comment.span.start().to_usize()]
+                    .lines()
+                    .count()
+                    - 1;
+                doc = doc.append(lines(distance));
+            } else {
+                // recheck the distance
+                doc = doc.append(line());
+            }
+        }
+        Some(doc)
+    }
+
     pub fn definition(&self, expr: &ast::Definition) -> Document {
-        match expr {
+        let span = match expr {
+            ast::Definition::Script(s) => s.loc.span(),
+            ast::Definition::Module(m) => m.loc.span(),
+            ast::Definition::Address(loc, _addr, _ms) => loc.span(),
+        };
+
+        let comments_before = self.pop_comments_before(span.start().to_usize());
+        let comment_doc = self.pretty_comments(comments_before);
+
+        let def = match expr {
             ast::Definition::Script(s) => self.script(s),
             ast::Definition::Module(m) => self.module(m),
-            ast::Definition::Address(loc, addr, ms) => self.address_block(loc, addr, ms),
+            ast::Definition::Address(loc, addr, ms) => {
+                // Tmp hack for address block Span.
+                let span = Span::new(loc.span().start(), self.source.len() as u32);
+                let loc = Loc::new(loc.file(), span);
+                self.address_block(&loc, addr, ms)
+            }
+        };
+        comment_doc.to_doc().append(def)
+    }
+
+    fn extract_container_comments(
+        &self,
+        container_span: Span,
+        item_spans: impl Iterator<Item = Span>,
+    ) -> Vec<Option<Document>> {
+        let mut span_start = container_span.start().to_usize();
+        let mut item_comments = Vec::new();
+
+        for s in item_spans {
+            let span_end = s.start().to_usize();
+            let comments_before = self.pop_comments_between(span_start, span_end);
+            let comments = self.pretty_comments(comments_before);
+            item_comments.push(comments);
+            span_start = s.end().to_usize();
         }
+
+        let comments_after = self.pop_comments_between(span_start, container_span.end().to_usize());
+        item_comments.push(self.pretty_comments(comments_after));
+        item_comments
     }
 
     pub fn address_block(
@@ -91,12 +151,17 @@ impl<'a> Formatter<'a> {
         addr: &Address,
         modules: &[ast::ModuleDefinition],
     ) -> Document {
-        let comments = self.pop_regular_comments(loc.span().start().to_usize());
-        let doc_comments = self.pop_doc_comments(loc.span().start().to_usize());
-        let comments = comments.chain(doc_comments);
-
         let header = "address ".to_doc().append(format!("{}", addr).to_doc());
-        let modules = concat(modules.iter().map(|m| self.module(m)).intersperse(lines(2)));
+
+        let mut item_comments =
+            self.extract_container_comments(loc.span(), modules.iter().map(|m| m.loc.span()));
+        let comments_after = item_comments.pop().unwrap();
+
+        let module_items = item_comments.into_iter().zip(modules).map(|(comments, m)| {
+            let module = self.module(m);
+            comments.to_doc().append(module)
+        });
+        let modules = concat(module_items.intersperse(lines(2)));
 
         // no indent for address block
         let body = "{"
@@ -104,16 +169,14 @@ impl<'a> Formatter<'a> {
             .append(line())
             .append(modules)
             .append(line())
+            .append(comments_after)
             .append("}");
 
-        let address_block = group("address_block".to_string(), header.append(" ").append(body));
-        commented(comments, address_block)
+        header.append(" ").append(body).group("address_block")
     }
 
     pub fn module(&self, module: &ast::ModuleDefinition) -> Document {
         use ast::ModuleMember as MM;
-        let module_comments = self.pop_doc_comments(module.loc.span().start().to_usize());
-
         let header = concat(
             vec!["module".to_doc(), module.name.to_doc(), "{".to_doc()]
                 .into_iter()
@@ -132,14 +195,13 @@ impl<'a> Formatter<'a> {
             })
             .collect();
 
-        let body = self.lang_items_(items.iter());
+        let body = self.lang_items_(module.loc.span(), items.iter());
         let body = nest(self.indent, body.surround(line(), nil()));
 
-        let module = group(
+        group(
             "module".to_string(),
             header.append(body).append(line()).append("}"),
-        );
-        commented(module_comments, module)
+        )
     }
 
     pub fn script(&self, script: &ast::Script) -> Document {
@@ -157,24 +219,30 @@ impl<'a> Formatter<'a> {
         items.extend(specs.iter().map(LangItem::Spec));
         items.sort_by_key(|i| i.loc().span().start());
 
-        let comments = self.pop_doc_comments(loc.span().start().to_usize());
-        let body = self.lang_items_(items.iter());
-        let body = nest(self.indent, line().append(body)).surround("script {", line().append("}"));
-
-        commented(comments, body)
+        let body = self.lang_items_(loc.span(), items.iter());
+        nest(self.indent, line().append(body)).surround("script {", line().append("}"))
     }
 
-    fn lang_items_<'b>(&self, items: impl Iterator<Item = &'b LangItem<'b>>) -> Document {
+    fn lang_items_<'b>(
+        &self,
+        container_span: Span,
+        items: impl Iterator<Item = &'b LangItem<'b>>,
+    ) -> Document {
         let mut peekable_items = items.peekable();
+
         let mut body = nil();
+        let mut span_start = container_span.start().to_usize();
         while let Some(item) = peekable_items.next() {
             let loc = item.loc();
-            let regular_comments = self.pop_regular_comments(loc.span().start().to_usize());
-            let item_comments = self.pop_doc_comments(item.loc().span().start().to_usize());
-            let commented_item =
-                commented(regular_comments.chain(item_comments), self.lang_item(item));
+            let span_end = loc.span().start().to_usize();
+            let comments_before = self.pop_comments_between(span_start, span_end);
+            let comments_doc = self.pretty_comments(comments_before);
 
+            let commented_item = comments_doc.to_doc().append(self.lang_item(item));
             body = body.append(commented_item);
+
+            span_start = loc.span().end().to_usize();
+
             if let Some(after) = peekable_items.peek() {
                 match (item, after) {
                     (LangItem::Use(_), LangItem::Use(_)) => {
@@ -195,7 +263,14 @@ impl<'a> Formatter<'a> {
                 }
             }
         }
-        body
+
+        // maybe comments after last item
+        let comments_after = self.pop_comments_between(span_start, container_span.end().to_usize());
+        if let Some(last_comment) = self.pretty_comments(comments_after) {
+            body.append(line()).append(last_comment)
+        } else {
+            body
+        }
     }
 
     fn lang_item(&self, item: &LangItem) -> Document {
@@ -212,7 +287,7 @@ impl<'a> Formatter<'a> {
 
     fn spec_block_(&self, s: &ast::SpecBlock) -> Document {
         use ast::SpecBlockTarget_ as T;
-        let _loc = s.loc;
+        let loc = s.loc;
         let ast::SpecBlock_ {
             target,
             uses,
@@ -243,17 +318,28 @@ impl<'a> Formatter<'a> {
         };
         let has_use = !uses.is_empty();
 
+        // TODO: fix comments on uses.
+        // in practice, it's rare to add comment on uses...
         let uses = uses.iter().map(|u| self.use_(u)).intersperse(line());
-        let members = concat(
-            members
-                .iter()
-                .map(|m| self.spec_member_(m))
-                .intersperse(line()),
-        );
+
+        let mut spec_member_comments =
+            self.extract_container_comments(loc.span(), members.iter().map(|m| m.loc.span()));
+        let comments_after = spec_member_comments.pop().unwrap();
+
+        let spec_members = spec_member_comments
+            .into_iter()
+            .zip(members)
+            .map(|(c, m)| c.to_doc().append(self.spec_member_(m)))
+            .intersperse(line());
+
+        let members = concat(spec_members);
 
         let sep_lines = if has_use { Some(lines(2)) } else { None };
 
-        let items = concat(uses).append(sep_lines).append(members);
+        let items = concat(uses)
+            .append(sep_lines)
+            .append(members)
+            .append(comments_after);
 
         let spec_body = line()
             .append(items)
@@ -264,10 +350,7 @@ impl<'a> Formatter<'a> {
 
     fn spec_member_(&self, member: &ast::SpecBlockMember) -> Document {
         use ast::SpecBlockMember_ as M;
-        let loc = member.loc;
-        let comments = self.pop_doc_comments(loc.span().start().to_usize());
-
-        let memebr = match &member.value {
+        match &member.value {
             M::Condition { kind, exp } => {
                 let exp = self.exp_(exp);
                 let breakable_exp = break_("", " ")
@@ -290,7 +373,7 @@ impl<'a> Formatter<'a> {
                 };
                 let signature = self.fn_signature_(signature);
                 let body = self.fn_body_(body);
-                concats!(modifier, " ", "fun", " ", name, signature, body).group("spec_function")
+                concats!(modifier, " ", "define", " ", name, signature, body).group("spec_function")
             }
             M::Variable {
                 is_global,
@@ -302,7 +385,7 @@ impl<'a> Formatter<'a> {
 
                 let tys = self
                     .type_parameters_(type_parameters)
-                    .unwrap_or(nil())
+                    .unwrap_or_else(nil)
                     .group("tys");
                 // group type_ to let tys break first.
                 let type_ = self.type_(type_).group("type");
@@ -375,10 +458,9 @@ impl<'a> Formatter<'a> {
                     .append(";")
                     .group("spec_pragma")
             }
-        };
-
-        commented(comments, memebr)
+        }
     }
+
     fn spec_apply_pattern_(&self, p: &ast::SpecApplyPattern) -> Document {
         let ast::SpecApplyPattern_ {
             visibility,
@@ -403,7 +485,7 @@ impl<'a> Formatter<'a> {
             name,
             type_parameters,
             fields,
-            loc: _,
+            loc: struct_loc,
         } = s;
 
         let header = {
@@ -437,16 +519,26 @@ impl<'a> Formatter<'a> {
                 if fs.is_empty() {
                     " { }".to_doc()
                 } else {
-                    let fs = fs.iter().map(|f| {
-                        let field_comments =
-                            self.pop_doc_comments(f.0.loc().span().start().to_usize());
+                    let mut comments = {
+                        let fields_span = fs
+                            .iter()
+                            .map(|(f, t)| Span::new(f.0.loc.span().start(), t.loc.span().end()));
+                        self.extract_container_comments(struct_loc.span(), fields_span)
+                    };
 
-                        commented(field_comments, self.struct_field_(f))
-                    });
-                    let fs = concat(fs.map(|f| f.append(",")).intersperse(line()));
+                    let comment_after = comments.pop().unwrap();
+
+                    let fs = {
+                        let fs = comments
+                            .into_iter()
+                            .zip(fs)
+                            .map(|(c, f)| c.to_doc().append(self.struct_field_(f)));
+                        concat(fs.map(|f| f.append(",")).intersperse(line()))
+                    };
                     // let fs = concat(fs.intersperse(",".to_doc().append(line())));
                     line()
                         .append(fs)
+                        .append(comment_after)
                         .nest(self.indent)
                         .surround(" {", line().append("}"))
                 }
@@ -560,7 +652,7 @@ impl<'a> Formatter<'a> {
             parameters,
             return_type,
         } = fn_signature;
-        let type_items = self.type_parameters_(type_parameters).unwrap_or(nil());
+        let type_items = self.type_parameters_(type_parameters).unwrap_or_else(nil);
 
         let param_items = wrap_list(
             "(",
@@ -620,7 +712,7 @@ impl<'a> Formatter<'a> {
         use ast::FunctionBody_ as B;
         match &body.value {
             B::Native => ";".to_doc(),
-            B::Defined(s) => " ".to_doc().append(self.sequence_(s)),
+            B::Defined(s) => " ".to_doc().append(self.sequence_(body.loc, s)),
         }
     }
 
@@ -670,7 +762,7 @@ impl<'a> Formatter<'a> {
     fn exp_(&self, exp: &ast::Exp) -> Document {
         use ast::Exp_ as E;
         let loc = exp.loc;
-        let exp_comments = self.pop_regular_comments(loc.span().start().to_usize());
+        let exp_comments = self.pop_comments_before(loc.span().start().to_usize());
         let e = match &exp.value {
             E::Unit => "()".to_doc(),
             E::Value(v) => v.to_doc(),
@@ -762,7 +854,7 @@ impl<'a> Formatter<'a> {
                 let e = self.exp_(e.as_ref());
                 concats!("loop ", e)
             }
-            E::Block(seq) => self.sequence_(seq),
+            E::Block(seq) => self.sequence_(exp.loc, seq),
             E::Lambda(bs, e) => {
                 let bs = bs.value.iter().map(|b| self.bind_(b));
                 let bindlist = wrap_list("|", "|", ",", self.indent, bs);
@@ -883,34 +975,42 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn sequence_(&self, sequence: &ast::Sequence) -> Document {
+    fn sequence_(&self, loc: Loc, sequence: &ast::Sequence) -> Document {
         let (uses, items, _, exp) = sequence;
 
-        let mut sequences: Vec<_> = uses
-            .iter()
-            .map(|u| self.use_(u))
-            .chain(items.iter().map(|i| {
-                let comments = self.pop_regular_comments(i.loc.span().start().to_usize());
-                commented(comments, self.sequence_item_(i))
-            }))
-            .collect();
+        let mut uses: Vec<_> = uses.iter().map(|u| self.use_(u)).collect();
 
-        if let Some(e) = exp.as_ref() {
-            let loc = e.loc;
-            let comments = self.pop_regular_comments(loc.span().start().to_usize());
-            let e = self.exp_(e).group("sequence_last_exp".to_string());
-            sequences.push(commented(comments, e));
+        let (item_comments, exp_comment, comment_after) = {
+            let mut spans: Vec<_> = items.iter().map(|i| i.loc.span()).collect();
+            if let Some(e) = exp.as_ref() {
+                spans.push(e.loc.span());
+            }
+            let mut comments = self.extract_container_comments(loc.span(), spans.into_iter());
+            let comment_after = comments.pop().unwrap();
+            let exp_comments = if exp.is_some() {
+                comments.pop().unwrap()
+            } else {
+                None
+            };
+            (comments, exp_comments, comment_after)
         };
 
-        // else if sequences.len() == 1 {
-        //     let body = concat(sequences.into_iter().intersperse(line()));
-        //     break_("{", "{ ")
-        //         .append(body)
-        //         .nest(self.indent)
-        //         .append(break_("", " "))
-        //         .append("}")
-        //         .flex_break("sequence".to_string())
-        // }
+        let mut seq_items: Vec<_> = item_comments
+            .into_iter()
+            .zip(items)
+            .map(|(c, i)| c.to_doc().append(self.sequence_item_(i)))
+            .collect();
+
+        uses.append(&mut seq_items);
+
+        let mut sequences = uses;
+        if let Some(e) = exp.as_ref() {
+            let e = self.exp_(e).group("sequence_last_exp".to_string());
+            sequences.push(exp_comment.to_doc().append(e));
+        };
+        if let Some(c) = comment_after {
+            sequences.push(c);
+        }
 
         if sequences.is_empty() {
             "{ }".to_doc()
@@ -992,19 +1092,7 @@ pub fn wrap_args<I>(open: &str, close: &str, delim: &str, indent: isize, args: I
 where
     I: Iterator<Item = Document>,
 {
-    let mut args = args.peekable();
-    if args.peek().is_none() {
-        return format!("{}{}", open, close).to_doc();
-    }
-    // open.to_doc()
-    //     .append(concat(args.intersperse(pretty::delim(delim))).flex_group(INDENT))
-    //     .append(close.to_doc())
-    break_(open, open)
-        .append(concat(args.intersperse(pretty::delim(delim))))
-        .nest(indent)
-        .append(break_(delim, ""))
-        .append(close)
-        .group("wrap_args".to_string())
+    wrap_list(open, close, delim, indent, args).group("wrap_args".to_string())
 }
 
 pub fn wrap_list<I, D: Documentable>(

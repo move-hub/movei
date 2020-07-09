@@ -1,58 +1,60 @@
 use anyhow::{bail, Result};
 use codespan::Span;
-use itertools::Itertools;
+
+use std::convert::TryFrom;
 
 pub struct Comments {
-    doc_comments: Vec<Span>,
-    regular_comments: Vec<Span>,
+    comments: Vec<Span>,
 }
 
 impl Comments {
-    pub fn new(source: &str, comment_map: Vec<Span>) -> Self {
-        let mut doc_comments = vec![];
-        let mut regular_comments = vec![];
-        for s in comment_map {
-            let t = comment_type(&source[s.start().to_usize()..s.end().to_usize()])
-                .expect("invalid comment span");
-            match t {
-                CommentType::Block | CommentType::Line => {
-                    regular_comments.push(s);
+    pub fn new(comment_map: Vec<Span>) -> Self {
+        Self {
+            comments: comment_map,
+        }
+    }
+
+    pub fn pop_comments_between(&mut self, span: Span) -> impl Iterator<Item = Span> {
+        let mut begin = None;
+        let mut end = None;
+
+        for (i, s) in self.comments.iter().enumerate() {
+            if s.start() >= span.start() && s.end() <= span.end() {
+                if begin.is_none() {
+                    begin = Some(i);
                 }
-                CommentType::DocBlock => {
-                    doc_comments.push(s);
-                }
-                CommentType::DocLine => {
-                    doc_comments.push(s);
-                }
+            } else if begin.is_some() {
+                end = Some(i);
+                break;
             }
         }
-        Self {
-            doc_comments,
-            regular_comments,
-        }
-    }
-
-    // Pop comments that occur before a byte-index in the source
-    pub fn pop_doc_comments(&mut self, limit: usize) -> impl Iterator<Item = Span> {
-        pop_comments(&mut self.doc_comments, limit)
-    }
-
-    pub fn pop_comments(&mut self, limit: usize) -> impl Iterator<Item = Span> {
-        pop_comments(&mut self.regular_comments, limit)
+        let total_len = self.comments.len();
+        let drain_range = match (begin, end) {
+            (Some(b), None) => (b..total_len),
+            (Some(b), Some(e)) => (b..e),
+            (None, _) => return vec![].into_iter(),
+        };
+        self.comments
+            .drain(drain_range)
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }
 
-fn pop_comments(c: &mut Vec<Span>, limit: usize) -> impl Iterator<Item = Span> {
-    let spans = c
-        .iter()
-        .take_while_ref(|span| span.start().to_usize() < limit).copied()
-        .collect::<Vec<_>>();
-    c.drain(0..spans.len());
-    spans.into_iter()
-}
 pub struct Comment<'a> {
     pub span: Span,
     pub content: &'a str,
+    pub ty: CommentType,
+}
+
+impl<'s> TryFrom<(Span, &'s str)> for Comment<'s> {
+    type Error = anyhow::Error;
+
+    fn try_from(d: (Span, &'s str)) -> Result<Self, Self::Error> {
+        let (span, source) = d;
+        let content = &source[span.start().to_usize()..span.end().to_usize()];
+        comment_type(content).map(|ty| Comment { span, content, ty })
+    }
 }
 
 pub enum CommentType {
