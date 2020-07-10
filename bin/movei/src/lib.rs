@@ -27,8 +27,8 @@ pub enum Command {
     Check(Check),
     #[clap(name = "build")]
     Build(Build),
-    #[clap(name = "run", about = "run script")]
-    Run(run::RunArgs),
+    // #[clap(name = "run", about = "run script")]
+    // Run(run::RunArgs),
     #[clap(name = "test")]
     /// run tests
     Test(TestArgs),

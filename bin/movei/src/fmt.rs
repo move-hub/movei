@@ -14,11 +14,16 @@ pub fn run(arg: FmtArgs) -> Result<()> {
     let content = std::fs::read_to_string(input.as_path())?;
     let fname = input.as_path().display().to_string();
     let fname: &'static str = Box::leak(Box::new(fname));
-    let parsed_result =
-        strip_comments_and_verify(fname, content.as_str()).and_then(|(stripped, comment_map)| {
-            parser::syntax::parse_file_string(fname, stripped.as_str(), Default::default())
-                .map(|(d, _c)| (d, comment_map))
-        });
+    let parsed_result = strip_comments_and_verify(fname, content.as_str()).and_then(
+        |(stripped, mut comment_map, mut regular_comments)| {
+            parser::syntax::parse_file_string(fname, stripped.as_str(), comment_map.clone()).map(
+                |(d, _c)| {
+                    comment_map.append(&mut regular_comments);
+                    (d, comment_map)
+                },
+            )
+        },
+    );
     // TODO: strip comment
     match parsed_result {
         Ok((defs, comments)) => {

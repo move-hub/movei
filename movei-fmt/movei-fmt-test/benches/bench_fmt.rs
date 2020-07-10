@@ -13,12 +13,15 @@ fn bench_move_fmt(c: &mut Criterion) {
         ("AccountLimits", ACCOUNT_LIMITS_SOURCE),
     ] {
         for width in &[80, 100, 120, 150] {
-            let (stripped, comments) =
+            let (stripped, mut comments, mut regular_comments) =
                 move_lang::strip_comments_and_verify("bench", source).unwrap();
             let (defs, _comments) =
-                parser::syntax::parse_file_string("test", stripped.as_str(), Default::default())
+                parser::syntax::parse_file_string("test", stripped.as_str(), comments.clone())
                     .unwrap();
             let def = defs.first().unwrap();
+
+            comments.append(&mut regular_comments);
+
             let formatter = Formatter::new(source, comments, 4);
 
             group

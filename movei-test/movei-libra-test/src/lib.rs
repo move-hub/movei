@@ -186,6 +186,7 @@ impl Command for LibraTestCommand {
 pub struct LibraCommandEvaluator {
     // store: FakeDataStore,
     dialect: LibraDialect,
+    extra_deps: Vec<String>,
 }
 
 impl LibraCommandEvaluator {
@@ -212,6 +213,9 @@ impl LibraCommandEvaluator {
     // }
     pub fn new() -> Self {
         Self::default()
+    }
+    pub fn add_deps(&mut self, deps: impl Iterator<Item = String>) {
+        self.extra_deps.extend(deps);
     }
 }
 
@@ -249,8 +253,9 @@ impl CommandEvaluator for LibraCommandEvaluator {
             };
             libra_commands.push(libra_cmd);
         }
-
-        let compiler = MoveSourceCompiler::new(self.dialect.stdlib_files());
+        let mut deps = self.dialect.stdlib_files();
+        deps.extend(self.extra_deps.clone());
+        let compiler = MoveSourceCompiler::new(deps);
         let logs = libra_evaluator::eval(&global_config, compiler, libra_commands.as_slice())?;
         Ok(logs)
     }

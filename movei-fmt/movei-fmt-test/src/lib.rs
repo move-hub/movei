@@ -47,11 +47,13 @@ pub fn functional_test(p: &Path) -> datatest::Result<()> {
 
 fn run_fmt(width: u64, indent: usize, text: &str) -> Result<()> {
     let text = text.trim();
-    let (stripped, comments) = move_lang::strip_comments_and_verify("test", text).unwrap();
+    let (stripped, mut comments, mut regular_comments) =
+        move_lang::strip_comments_and_verify("test", text).unwrap();
     // TODO: filter out doc comments
     let (defs, _comments) =
-        parser::syntax::parse_file_string("test", stripped.as_str(), Default::default()).unwrap();
+        parser::syntax::parse_file_string("test", stripped.as_str(), comments.clone()).unwrap();
     let def = defs.first().unwrap();
+    comments.append(&mut regular_comments);
     let formatter = Formatter::new(text, comments, indent);
     let doc = formatter.definition(def);
     let res = format(width as isize, doc);

@@ -29,7 +29,6 @@ impl Default for ProfileConfig {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub enum SupportedDialect {
     Libra,
-    Starcoin,
 }
 
 impl Default for SupportedDialect {
