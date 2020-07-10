@@ -88,10 +88,12 @@ pub struct TestArgs {
 
 #[derive(Clap, Debug)]
 pub struct FmtArgs {
-    #[clap(short, long)]
+    #[clap(short, long, default_value = "100")]
     pub width: u32,
     #[clap(short = 'n', long, default_value = "4")]
     pub indent: usize,
+    #[clap(long)]
+    pub in_place: bool,
     #[clap(name = "input", parse(from_os_str))]
     pub input: PathBuf,
 }

@@ -8,6 +8,7 @@ pub fn run(arg: FmtArgs) -> Result<()> {
         width,
         indent,
         input,
+        in_place,
     } = arg;
 
     let content = std::fs::read_to_string(input.as_path())?;
@@ -27,7 +28,11 @@ pub fn run(arg: FmtArgs) -> Result<()> {
                     let formatter = Formatter::new(content.as_str(), comments, indent);
                     let doc = formatter.definition(def);
                     let output = format(width as isize, doc);
-                    println!("{}", output);
+                    if in_place {
+                        std::fs::write(input.as_path(), output)?;
+                    } else {
+                        println!("{}", output);
+                    }
                 }
             };
             Ok(())
