@@ -24,11 +24,13 @@ module A {
     >(): Preburn<CoinType> {
         assert_is_coin<CoinType>();
         Preburn<CoinType> {
-            requests: Vector::empty()
+            requests: Vector::empty(),
         }
     }
 
-    public fun grant_privileges(account: &signer) {
+    public fun grant_privileges(
+        account: &signer,
+    ) {
         Roles::add_privilege_to_account_treasury_compliance_role(
             account,
             RegisterNewCurrency {},
@@ -48,6 +50,14 @@ module A {
 
     public fun grant_privileges(account: &signer) {
         Roles::add_privilege_to_account_treasury_compliance_role(account, RegisterNewCurrency {});
+    }
+
+    public fun join<CoinType: resource>(
+        coin1: Coin<CoinType>,
+        coin2: Coin<CoinType>,
+    ): Coin<CoinType> {
+        deposit(&mut coin1, coin2);
+        coin1
     }
 }
 

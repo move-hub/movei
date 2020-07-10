@@ -671,7 +671,7 @@ impl<'a> Formatter<'a> {
         cons! {
             type_items.flex_break("type_parameters".to_string()),
             param_items.flex_break("parameters".to_string()),
-            ret
+            ret.group("return_type")
         }
     }
     fn type_parameter_(&self, type_parameter: &(Name, ast::Kind)) -> Document {
