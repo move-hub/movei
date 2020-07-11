@@ -20,6 +20,7 @@ impl Package {
         fs::create_dir_all(package.dir.as_path())?;
         fs::create_dir_all(package.module_dir().as_path())?;
         fs::create_dir_all(package.script_dir().as_path())?;
+        fs::create_dir_all(package.tests_dir().as_path())?;
         // save config
         let config_data = toml::to_string(package.config())?;
         fs::write(package.config_path(), config_data)?;

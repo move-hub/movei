@@ -7,18 +7,25 @@ use move_test_compiler::MoveSourceCompiler;
 use anyhow::{bail, format_err, Error, Result};
 use dialect::MoveDialect;
 use functional_tests::{
+    compiler::Compiler,
     config::{block_metadata, global, transaction},
     evaluator as libra_evaluator,
     preprocessor::{substitute_addresses_and_auth_keys, RawTransactionInput},
 };
 use itertools::Itertools;
+use language_e2e_tests::executor::FakeExecutor;
+use libra_types::on_chain_config::VMPublishingOption;
+use move_lang::compiled_unit::CompiledUnit;
 use movei_libra_dialect::LibraDialect;
-use movei_test::{Command, CommandConfigEntry, CommandEvaluator, EvaluationLog};
+use movei_test::{Command, CommandConfigEntry, CommandEvaluator, EvaluationLog, EvaluationOutput};
 use std::{
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
     str::FromStr,
 };
+
+use compiled_stdlib::{stdlib_modules, StdLibOptions};
+use vm::file_format::CompiledModule;
 
 #[derive(Debug)]
 pub enum LibraTestCommand {
@@ -190,27 +197,6 @@ pub struct LibraCommandEvaluator {
 }
 
 impl LibraCommandEvaluator {
-    // pub fn new() -> Self {
-    //     let dialect = LibraDialect::new();
-    //     let genesis = dialect.genesis();
-    //     let mut store = FakeDataStore::default();
-    //     store.add_write_set(genesis);
-    //     let mut global_config = GloablConfig {
-    //         rng: StdRng::from_seed([0x1f; 32]),
-    //         config: global::Config {
-    //             accounts: BTreeMap::new(),
-    //             genesis_accounts: BTreeMap::new(),
-    //             addresses: BTreeMap::new(),
-    //             validator_accounts: 0,
-    //         },
-    //     };
-    //
-    //     Self {
-    //         store,
-    //         dialect,
-    //         config: global_config,
-    //     }
-    // }
     pub fn new() -> Self {
         Self::default()
     }
@@ -254,9 +240,89 @@ impl CommandEvaluator for LibraCommandEvaluator {
             libra_commands.push(libra_cmd);
         }
         let mut deps = self.dialect.stdlib_files();
+
+        let (_file_sources, compiled_units) =
+            move_lang::move_compile(self.extra_deps.as_slice(), deps.as_slice(), None)?;
+        let extra_modules: Vec<_> = compiled_units
+            .into_iter()
+            .filter_map(|u| match u {
+                CompiledUnit::Module { module, .. } => Some(module),
+                CompiledUnit::Script { .. } => None,
+            })
+            .collect();
         deps.extend(self.extra_deps.clone());
+
         let compiler = MoveSourceCompiler::new(deps);
-        let logs = libra_evaluator::eval(&global_config, compiler, libra_commands.as_slice())?;
+        let logs = eval(
+            &global_config,
+            compiler,
+            extra_modules.as_slice(),
+            libra_commands.as_slice(),
+        )?;
         Ok(logs)
     }
+}
+
+/// A Copy of Libra evaluator.eval
+/// Feeds all given transactions through the pipeline and produces an EvaluationLog.
+pub fn eval<TComp: Compiler>(
+    config: &global::Config,
+    mut compiler: TComp,
+    extra_modules: &[CompiledModule],
+    commands: &[libra_evaluator::Command],
+) -> Result<EvaluationLog> {
+    let mut log = EvaluationLog { outputs: vec![] };
+
+    // Set up a fake executor with the genesis block and create the accounts.
+    let mut exec = if config.validator_accounts == 0 {
+        if compiler.use_compiled_genesis() {
+            FakeExecutor::from_genesis_file()
+        } else {
+            FakeExecutor::from_fresh_genesis()
+        }
+    } else {
+        // use custom validator set. this requires dynamically generating a new genesis tx and
+        // is thus more expensive.
+        FakeExecutor::custom_genesis(
+            stdlib_modules(if compiler.use_compiled_genesis() {
+                StdLibOptions::Compiled
+            } else {
+                StdLibOptions::Fresh
+            })
+            .to_vec(),
+            Some(config.validator_accounts),
+            VMPublishingOption::Open,
+        )
+    };
+    for data in config.accounts.values() {
+        exec.add_account_data(&data);
+    }
+    for m in extra_modules {
+        exec.add_module(&m.self_id(), m);
+    }
+
+    for (idx, command) in commands.iter().enumerate() {
+        match command {
+            libra_evaluator::Command::Transaction(transaction) => {
+                let status = libra_evaluator::eval_transaction(
+                    &mut compiler,
+                    &mut exec,
+                    idx,
+                    transaction,
+                    &mut log,
+                )?;
+                log.append(EvaluationOutput::Status(status));
+            }
+            libra_evaluator::Command::BlockMetadata(block_metadata) => {
+                let status = libra_evaluator::eval_block_metadata(
+                    &mut exec,
+                    block_metadata.clone(),
+                    &mut log,
+                )?;
+                log.append(EvaluationOutput::Status(status));
+            }
+        }
+    }
+
+    Ok(log)
 }

@@ -16,6 +16,9 @@ libra-crypto = "0.1.0"
 libra-types = "0.1.0"
 language-e2e-tests = "0.1.0"
 move-lang = "0.0.1"
+vm = "0.1.0"
+#stdlib = "0.1.0"
+compiled-stdlib = "0.1.0"
 
 movei-test = {path = "../../movei-test"}
 datatest = {path = "../../datatest"}

@@ -87,6 +87,6 @@ impl Compiler for MoveSourceCompiler {
     }
 
     fn use_compiled_genesis(&self) -> bool {
-        false
+        true
     }
 }
