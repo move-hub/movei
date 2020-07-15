@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct MoveiConfig {
     pub package: PackageConfig,
@@ -14,13 +16,13 @@ pub struct PackageConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProfileConfig {
     pub dialect: SupportedDialect,
-    pub skip_stdlib_deps: bool,
+    pub stdlib_path: Option<PathBuf>,
 }
 
 impl Default for ProfileConfig {
     fn default() -> Self {
         Self {
-            skip_stdlib_deps: false,
+            stdlib_path: None,
             dialect: SupportedDialect::default(),
         }
     }

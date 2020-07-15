@@ -1,6 +1,5 @@
 use crate::{context::MoveiContext, Check};
 use anyhow::{bail, Result};
-use dialect::MoveDialect;
 
 pub fn run(args: Check, context: MoveiContext) -> Result<()> {
     let Check {
@@ -9,7 +8,14 @@ pub fn run(args: Check, context: MoveiContext) -> Result<()> {
     } = args;
 
     let package = context.package();
-    let deps = context.dialect().stdlib_files();
+    let deps = package
+        .config()
+        .profile
+        .stdlib_path
+        .as_ref()
+        .map(|p| vec![p.to_string_lossy().to_string()])
+        .unwrap_or_default();
+
     let mut targets = vec![];
     targets.push(package.module_dir().to_string_lossy().to_string());
 

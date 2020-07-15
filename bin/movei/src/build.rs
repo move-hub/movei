@@ -1,16 +1,23 @@
 use crate::{context::MoveiContext, Build};
 use anyhow::{bail, Result};
-use dialect::MoveDialect;
 use move_lang::shared::Address;
 use std::convert::TryFrom;
+
 pub fn run(args: Build, context: MoveiContext) -> Result<()> {
     let Build {
         sender,
         script_name,
     } = args;
     let package = context.package();
-    let dialect = context.dialect();
-    let mut deps = dialect.stdlib_files();
+
+    let mut deps = package
+        .config()
+        .profile
+        .stdlib_path
+        .as_ref()
+        .map(|p| vec![p.to_string_lossy().to_string()])
+        .unwrap_or_default();
+
     let mut targets = vec![];
 
     // if compiling script, not output the module byecodes.

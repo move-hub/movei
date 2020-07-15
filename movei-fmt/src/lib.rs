@@ -89,9 +89,9 @@ impl<'a> Formatter<'a> {
             if let Some(next_comment) = comments.peek() {
                 let distance = self.source
                     [c.span.end().to_usize()..next_comment.span.start().to_usize()]
-                    .lines()
-                    .count()
-                    - 1;
+                    .chars()
+                    .filter(|c| c == &'\n')
+                    .count();
                 doc = doc.append(lines(distance));
             } else {
                 // recheck the distance
