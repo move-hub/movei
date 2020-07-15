@@ -4,10 +4,17 @@ use libra_types::{
     access_path::AccessPath,
     write_set::{WriteOp, WriteSet},
 };
-use move_core_types::language_storage::ModuleId;
+use move_core_types::{
+    account_address::AccountAddress,
+    language_storage::{ModuleId, ResourceKey, StructTag, TypeTag},
+    vm_status::StatusCode,
+};
 use move_vm_runtime::data_cache::RemoteCache;
 use std::collections::HashMap;
-use vm::{errors::VMResult, CompiledModule};
+use vm::{
+    errors::{Location, PartialVMError, PartialVMResult, VMResult},
+    CompiledModule,
+};
 
 /// An in-memory implementation of [`RemoteCache`] for the VM.
 ///
@@ -81,9 +88,30 @@ impl StateView for FakeDataStore {
     }
 }
 
-// This is used by the `process_transaction` API.
 impl RemoteCache for FakeDataStore {
-    fn get(&self, access_path: &AccessPath) -> VMResult<Option<Vec<u8>>> {
-        Ok(self.data.get(access_path).cloned())
+    fn get_module(&self, module_id: &ModuleId) -> VMResult<Option<Vec<u8>>> {
+        let ap = AccessPath::from(module_id);
+        self.get(&ap)
+            .map_err(|_| PartialVMError::new(StatusCode::STORAGE_ERROR).finish(Location::Undefined))
     }
+
+    fn get_resource(
+        &self,
+        address: &AccountAddress,
+        tag: &TypeTag,
+    ) -> PartialVMResult<Option<Vec<u8>>> {
+        let struct_tag = match tag {
+            TypeTag::Struct(struct_tag) => struct_tag.clone(),
+            _ => return Err(PartialVMError::new(StatusCode::VALUE_DESERIALIZATION_ERROR)),
+        };
+        let ap = create_access_path(*address, struct_tag);
+        self.get(&ap)
+            .map_err(|_| PartialVMError::new(StatusCode::STORAGE_ERROR))
+    }
+}
+
+/// Get the AccessPath to a resource stored under `address` with type name `tag`
+fn create_access_path(address: AccountAddress, tag: StructTag) -> AccessPath {
+    let resource_tag = ResourceKey::new(address, tag);
+    AccessPath::resource_access_path(&resource_tag)
 }

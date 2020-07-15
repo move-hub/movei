@@ -60,7 +60,7 @@ impl MoveDialect for LibraDialect {
     }
 
     fn cost_table(&self) -> CostTable {
-        let c = VMConfig::fetch_config(self).expect("vm config should exists in genesis");
+        let c = VMConfig::fetch_config(&self).expect("vm config should exists in genesis");
         c.gas_schedule
     }
 }

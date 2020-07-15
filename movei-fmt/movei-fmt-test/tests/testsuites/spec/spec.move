@@ -20,6 +20,11 @@ module A {
             mint_with_capability<CoinType>;
     }
 
+    spec schema AbortsIfParentIsNotParentVASP {
+        local addr: address;
+        aborts_if [export] !spec_is_parent_vasp(spec_parent_address(addr));
+    }
+
     spec schema SumOfCoinValuesInvariant<CoinType> {
         /// The sum of value of coins is consistent with
         /// the total_value CurrencyInfo keeps track of.

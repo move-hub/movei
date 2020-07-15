@@ -351,12 +351,25 @@ impl<'a> Formatter<'a> {
     fn spec_member_(&self, member: &ast::SpecBlockMember) -> Document {
         use ast::SpecBlockMember_ as M;
         match &member.value {
-            M::Condition { kind, exp } => {
+            M::Condition {
+                kind,
+                exp,
+                properties,
+            } => {
                 let exp = self.exp_(exp);
+
+                let properties = if properties.is_empty() {
+                    None
+                } else {
+                    Some(
+                        wrap_list(" [", "]", ",", self.indent, properties.iter())
+                            .flex_break("properties"),
+                    )
+                };
                 let breakable_exp = break_("", " ")
                     .append(exp.flex_break("exp"))
                     .nest(self.indent);
-                cons!(kind, breakable_exp, ";").group("spec_condition")
+                cons!(kind, properties, breakable_exp, ";").group("spec_condition")
             }
             M::Function {
                 uninterpreted,

@@ -3,21 +3,26 @@
 mod diff;
 mod host_config;
 
-use crate::context::MoveiContext;
+use crate::{context::MoveiContext, run::diff::print_diff};
 use anyhow::{Error, Result};
 use clap::Clap;
 use dialect::MoveDialect;
 use libra_types::{account_address::AccountAddress, transaction::TransactionArgument};
 use move_core_types::{
     gas_schedule::{GasAlgebra, GasUnits},
+    language_storage::TypeTag,
     parser::parse_transaction_argument,
 };
 use move_lang::{compiled_unit::CompiledUnit, shared::Address};
-use move_vm_runtime::move_vm::MoveVM;
+use move_vm_runtime::{
+    data_cache::{RemoteCache, TransactionEffects},
+    move_vm::MoveVM,
+};
 use move_vm_types::{gas_schedule::CostStrategy, values::Value};
-use movei_executor::{change_set::Change, state::FakeDataStore, txn_cache::TransactionDataCache};
+use movei_executor::{output_formatter::to_changes, state::FakeDataStore};
 use resource_viewer::MoveValueAnnotator;
 use std::{collections::HashMap, convert::TryFrom};
+use vm::errors::VMResult;
 
 #[derive(Clap, Debug)]
 pub struct RunArgs {
@@ -89,81 +94,45 @@ pub fn run(args: RunArgs, context: MoveiContext) -> Result<()> {
     }
     let dialect = context.dialect();
 
-    let vm = MoveVM::new();
     let mut data_store = FakeDataStore::new(HashMap::new());
     data_store.add_write_set(dialect.genesis());
     // cache modules
     for compiled_module in compiled_modules.iter() {
         data_store.add_module(&compiled_module.self_id(), compiled_module);
     }
+
     let cost_table = dialect.cost_table();
-    let mut chain_state = TransactionDataCache::new(&data_store);
+    // let mut chain_state = TransactionDataCache::new(&data_store);
     let mut cost_strategy = CostStrategy::transaction(&cost_table, GasUnits::new(u64::MAX));
-    let main_script = main.unwrap();
-    let type_args = vec![];
-    let args = convert_txn_args(&args);
-    let exec_result = vm.execute_script(
-        main_script,
-        type_args,
-        args,
-        sender,
-        &mut chain_state,
-        &mut cost_strategy,
-    );
+
+    let exec_result = {
+        let main_script = main.unwrap();
+        let type_args = vec![];
+        let args = convert_txn_args(&args);
+
+        exec_script(
+            main_script,
+            type_args,
+            args,
+            sender,
+            &data_store,
+            &mut cost_strategy,
+        )
+    };
+
     if let Err(e) = exec_result {
         println!("{:?} when exec {}", &e, &script_name);
-        return Err(Error::from(e));
+
+        return Err(Error::from(e.into_vm_status()));
     }
-    let output = chain_state.make_change_set()?;
+    let txn_effects = exec_result.unwrap();
     let gas_used = u64::MAX - cost_strategy.remaining_gas().get();
     // let events = chain_state.event_data().to_vec();
 
     println!("ChangeSet:");
     let annotator = MoveValueAnnotator::new(&data_store);
-    for (addr, cs) in output.into_changes() {
-        for c in cs {
-            let (old, new) = match c {
-                Change::DeleteResource(t, d) => {
-                    let old = {
-                        let data = d.simple_serialize(&t).unwrap();
-                        let annotated_s = annotator.view_struct(t, data.as_slice())?;
-                        format!("{}", annotated_s)
-                    };
-                    (old, String::new())
-                }
-                Change::AddResource(t, d) => {
-                    let new = {
-                        let data = d.simple_serialize(&t).unwrap();
-                        let annotated_s = annotator.view_struct(t, data.as_slice())?;
-                        format!("{}", annotated_s)
-                    };
-                    (String::new(), new)
-                }
-                Change::ModifyResource(t, old_data, new_data) => {
-                    let old = {
-                        let data = old_data.simple_serialize(&t).unwrap();
-                        let annotated_s = annotator.view_struct(t.clone(), data.as_slice())?;
-                        format!("{}", annotated_s)
-                    };
-                    let new = {
-                        let data = new_data.simple_serialize(&t).unwrap();
-                        let annotated_s = annotator.view_struct(t, data.as_slice())?;
-                        format!("{}", annotated_s)
-                    };
-                    (old, new)
-                }
-                Change::AddModule(m, _) => {
-                    let new = format!("{:#x}::{}", m.address(), m.name());
-                    (String::new(), new)
-                }
-            };
-
-            println!("address {:#x}:", addr);
-            let cs = difference::Changeset::new(&old, &new, "");
-            println!("{}", &cs);
-        }
-    }
-
+    let changes = to_changes(txn_effects);
+    print_diff(changes, annotator)?;
     println!("GasUsed: {}", gas_used);
     Ok(())
 }
@@ -180,4 +149,19 @@ fn convert_txn_args(args: &[TransactionArgument]) -> Vec<Value> {
             TransactionArgument::U8Vector(v) => Value::vector_u8(v.clone()),
         })
         .collect()
+}
+
+fn exec_script<'a, R: RemoteCache>(
+    script: Vec<u8>,
+    ty_args: Vec<TypeTag>,
+    args: Vec<Value>,
+    sender: AccountAddress,
+    data_store: &'a R,
+    cost_strategy: &'a mut CostStrategy,
+) -> VMResult<TransactionEffects> {
+    let vm = MoveVM::new();
+    let mut session = vm.new_session(data_store);
+
+    session.execute_script(script, ty_args, args, sender, cost_strategy)?;
+    session.finish()
 }
