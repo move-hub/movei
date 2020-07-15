@@ -6,7 +6,6 @@
 
 /// The implementation is Copied from gleam-lang source repo.
 /// All right reserved to gleam-lang team.
-use itertools::Itertools;
 use rpds::List;
 
 pub trait Documentable {
@@ -193,9 +192,7 @@ pub fn format(limit: isize, doc: Document) -> String {
             Document::Group("global".to_string(), Box::new(doc))
         )],
     );
-    // TODO: figure out more performance way
-    // trim empty lines
-    buffer.lines().map(|l| l.trim_end()).join("\n")
+    buffer
 }
 
 fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: List<(isize, Mode, Document)>) {

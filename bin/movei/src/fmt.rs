@@ -1,5 +1,6 @@
 use crate::FmtArgs;
 use anyhow::{bail, Result};
+use itertools::Itertools;
 use move_lang::{errors::FilesSourceText, parser, strip_comments_and_verify};
 use movei_fmt::{format, Formatter};
 
@@ -33,6 +34,10 @@ pub fn run(arg: FmtArgs) -> Result<()> {
                     let formatter = Formatter::new(content.as_str(), comments, indent);
                     let doc = formatter.definition(def);
                     let output = format(width as isize, doc);
+                    let output = {
+                        // trim empty lines
+                        output.lines().map(|l| l.trim_end()).join("\n")
+                    };
                     if in_place {
                         std::fs::write(input.as_path(), output)?;
                     } else {

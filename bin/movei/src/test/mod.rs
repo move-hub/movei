@@ -8,7 +8,7 @@ use std::path::Path;
 pub fn test(path: &Path) -> datatest::Result<()> {
     let package_root = get_package_root()?;
     if package_root.is_none() {
-        Err(format_err!("should in movei package dir"))?;
+        return Err(format_err!("should in movei package dir").into());
     }
     let package = Package::load(package_root.unwrap())?;
 

@@ -4,6 +4,7 @@ mod command;
 use anyhow::Result;
 use color_diff::color_diff;
 
+use itertools::Itertools;
 use move_lang::parser;
 use movei_fmt::{format, Formatter};
 use movei_test::command_parser;
@@ -57,6 +58,8 @@ fn run_fmt(width: u64, indent: usize, text: &str) -> Result<()> {
     let formatter = Formatter::new(text, comments, indent);
     let doc = formatter.definition(def);
     let res = format(width as isize, doc);
+    // trim empty line
+    let res = res.lines().map(|l| l.trim_end()).join("\n");
     assert_diff!(text, res.as_str(), 0);
     Ok(())
 }
