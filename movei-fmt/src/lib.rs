@@ -12,7 +12,10 @@ pub use pretty::format;
 use crate::{
     comments::{Comment, Comments},
     lang_items::LangItem,
-    pretty::{break_, concat, delim, group, line, lines, nest, nil, space, Document, Documentable},
+    pretty::{
+        break_, concat, delim, force_break, group, line, lines, nest, nil, space, Document,
+        Documentable,
+    },
 };
 use codespan::{ByteIndex, Span};
 use itertools::Itertools;
@@ -22,7 +25,7 @@ use move_lang::{
         ast,
         ast::{SpecBlockTarget_, Type_},
     },
-    shared::{Address, Name},
+    shared::{Address, Identifier, Name},
     FileCommentMap,
 };
 use std::{cell::RefCell, convert::TryFrom};
@@ -82,7 +85,7 @@ impl<'a> Formatter<'a> {
         let mut comments = comments.peekable();
         comments.peek()?;
 
-        let mut doc = nil();
+        let mut doc = force_break();
         // keep the lines between two comments
         while let Some(c) = comments.next() {
             doc = doc.append(c.content);
@@ -821,7 +824,13 @@ impl<'a> Formatter<'a> {
                     let fields = concat(
                         fields
                             .iter()
-                            .map(|f| self.pack_field_(f))
+                            .map(|f| {
+                                let comments =
+                                    self.pop_comments_before(f.0.loc().span().start().to_usize());
+                                let comments = self.pretty_comments(comments);
+                                let f = self.pack_field_(f);
+                                cons!(comments, f)
+                            })
                             .intersperse(break_(",", ", ")),
                     );
                     break_("{", "{ ")
