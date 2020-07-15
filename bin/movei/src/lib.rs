@@ -95,5 +95,5 @@ pub struct FmtArgs {
     #[clap(long)]
     pub in_place: bool,
     #[clap(name = "input", parse(from_os_str))]
-    pub input: PathBuf,
+    pub input: Option<PathBuf>,
 }

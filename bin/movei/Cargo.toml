@@ -16,6 +16,7 @@ tokio = { version = "0.2", features = ["blocking"]}
 toml = "0.5"
 serde = "1.0"
 itertools = "0.9.0"
+walkdir = "2.3"
 
 move-lang = "0.0.1"
 move-core-types = "0.1.0"
