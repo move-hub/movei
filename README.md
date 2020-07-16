@@ -1,46 +1,41 @@
-# movei
-a move package development tool for libra move-lang.
+# Movei
 
-### new package
+Movei a package development tool for [Move Lang](https://github.com/libra/libra/language/move-lang).
 
-create a new move package named `hello_word` under current dir.
-```
-movei new --name hello_world .
-```
+## Features
 
-### check
+Movei provided the following common features.
 
-check modules:
+- Create a project template for developing move modules.
+- Check the modules.
+- Build modules into move bytecodes.
+- Fmt your move modules.
+- Test your code. (Your can write functional tests for you modules, just like the functional-tests in Libra).
 
-```
-movei check
-```
+## Install
 
-check script(with modules as dependencies):
+Movei is developed in Rust, not released yet, I suggest you 
 
-```
-movei check --script script1
-```
+build it from source:
 
-### build
-
-build modules:
-
-```
-movei build --sender 0x01
+```shell script
+git clone https://github.com/move-hub/movei.git
+cd movei
+cargo build --release
 ```
 
-build scripts:
+Or using:
 
-
+```shell script
+rustup toolchain install nightly
+rustup default nightly
+cargo install --git https://github.com/move-hub/movei.git --branch master --bin movei
 ```
-movei build --script script1 --sender 0x01
-```
 
-### exec
+## Roadmap
 
-Execute script with name `say_hi`:
-
-``` bash
-movei exec --sender 0x01 -s say_hi 
-```
+- Make movei-fmt more cleaver.
+- Make check&build faster by memorizing some intermediate compiling result. 
+- Add `movei run` command to execute scripts on Libra or other move-vm based blockchain.
+  It doesn't really submit transaction, just run script and get the script state change.
+- Support dependent on modules developed by others, like a real package manager does.  
