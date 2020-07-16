@@ -13,7 +13,7 @@ pub fn run(arg: FmtArgs) -> Result<()> {
         in_place,
     } = arg;
 
-    let package = get_package_root()?.map(|p| Package::load(p)).transpose()?;
+    let package = get_package_root()?.map(Package::load).transpose()?;
     let lookup_paths = input
         .map(|p| vec![p])
         .or_else(|| package.map(|p| vec![p.module_dir(), p.script_dir()]))
