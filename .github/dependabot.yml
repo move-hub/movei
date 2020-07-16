@@ -6,4 +6,4 @@ updates:
       interval: "daily"
     target-branch: "master"
     labels:
-      - "cargo dependencies"
+      - "dependency"
