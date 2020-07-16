@@ -119,6 +119,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "archery"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a8da9bc4c4053ee067669762bcaeea6e241841295a2b6c948312dad6ef4cc02"
+dependencies = [
+ "static_assertions 1.1.0",
+]
+
+[[package]]
 name = "arrayvec"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2034,7 +2043,7 @@ name = "movei-fmt"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "archery",
+ "archery 0.4.0",
  "codespan",
  "env_logger",
  "itertools",
@@ -2794,7 +2803,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1196a0a2f52d343bd32179834273eaac7d8739f7e3f8b700227d2fa06b9a423b"
 dependencies = [
- "archery",
+ "archery 0.3.0",
 ]
 
 [[package]]

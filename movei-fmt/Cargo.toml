@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 rpds = "0.7"
-archery = "0.3"
+archery = "0.4"
 itertools = "0.9"
 codespan = "0.8"
 anyhow="1.0"
