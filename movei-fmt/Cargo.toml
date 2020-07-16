@@ -14,7 +14,7 @@ codespan = "0.8"
 anyhow="1.0"
 move-lang = "0.0.1"
 move-ir-types = "0.1.0"
-log = "0.4.8"
+log = "0.4.11"
 
 [dev-dependencies]
 env_logger = "0.7"
