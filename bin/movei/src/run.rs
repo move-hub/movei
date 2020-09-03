@@ -162,6 +162,6 @@ fn exec_script<'a, R: RemoteCache>(
     let vm = MoveVM::new();
     let mut session = vm.new_session(data_store);
 
-    session.execute_script(script, ty_args, args, sender, cost_strategy)?;
+    session.execute_script(script, ty_args, args, vec![sender], cost_strategy)?;
     session.finish()
 }

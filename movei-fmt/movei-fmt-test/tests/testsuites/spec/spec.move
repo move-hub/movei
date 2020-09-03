@@ -18,11 +18,20 @@ module A {
         except
             mint<CoinType>,
             mint_with_capability<CoinType>;
+        modifies global<Window<CoinType>>(addr);
     }
 
     spec schema AbortsIfParentIsNotParentVASP {
         local addr: address;
         aborts_if [export] !spec_is_parent_vasp(spec_parent_address(addr));
+        aborts_if
+            !exists<LimitsDefinition<CoinType>>(limit_address)
+        with
+            Errors::NOT_PUBLISHED;
+        aborts_if
+            exists<Window<CoinType>>(Signer::spec_address_of(to_limit))
+        with
+            Errors::ALREADY_PUBLISHED;
     }
 
     spec schema SumOfCoinValuesInvariant<CoinType> {

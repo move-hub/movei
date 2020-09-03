@@ -136,10 +136,7 @@ impl Command for LibraTestCommand {
     type ConfigEntry = ConfigEntry;
 
     fn has_config(&self) -> bool {
-        match self {
-            LibraTestCommand::GlobalConfig(_) => false,
-            _ => true,
-        }
+        !matches!(self, LibraTestCommand::GlobalConfig(_))
     }
     fn add_config(&mut self, config: Self::ConfigEntry) -> Result<()> {
         match (self, config) {

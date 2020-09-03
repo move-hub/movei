@@ -23,7 +23,7 @@ use move_ir_types::location::Loc;
 use move_lang::{
     parser::{
         ast,
-        ast::{SpecBlockTarget_, Type_},
+        ast::{SpecBlockMember_, SpecBlockTarget_, SpecConditionKind, Type_},
     },
     shared::{Address, Identifier, Name},
     FileCommentMap,
@@ -358,8 +358,20 @@ impl<'a> Formatter<'a> {
                 kind,
                 exp,
                 properties,
+                additional_exps,
             } => {
-                let exp = self.exp_(exp);
+                // ugly hack in move parser
+                let exp = if *kind == SpecConditionKind::AbortsWith
+                    || *kind == SpecConditionKind::Modifies
+                {
+                    None
+                } else {
+                    let exp = self.exp_(exp);
+                    let breakable_exp = break_("", " ")
+                        .append(exp.flex_break("exp"))
+                        .nest(self.indent);
+                    Some(breakable_exp)
+                };
 
                 let properties = if properties.is_empty() {
                     None
@@ -369,10 +381,31 @@ impl<'a> Formatter<'a> {
                             .flex_break("properties"),
                     )
                 };
-                let breakable_exp = break_("", " ")
-                    .append(exp.flex_break("exp"))
-                    .nest(self.indent);
-                cons!(kind, properties, breakable_exp, ";").group("spec_condition")
+
+                let no_with = exp.is_none();
+                let additional_exps = if !additional_exps.is_empty() {
+                    let additionals = concat(
+                        additional_exps
+                            .iter()
+                            .map(|p| self.exp_(p).group("additional_exp"))
+                            .intersperse(delim(",")),
+                    );
+
+                    let optional_with = if no_with {
+                        nil()
+                    } else {
+                        break_("", " ").append("with")
+                    };
+                    Some(
+                        optional_with
+                            .append((break_("", " ")).append(additionals).nest(self.indent))
+                            .flex_break("additional_exps"),
+                    )
+                } else {
+                    None
+                };
+
+                cons!(kind, properties, exp, additional_exps, ";").group("spec_condition")
             }
             M::Function {
                 uninterpreted,
@@ -381,15 +414,23 @@ impl<'a> Formatter<'a> {
                 body,
             } => {
                 let modifier = if *uninterpreted {
-                    "uninterpreted"
+                    Some("uninterpreted")
                 } else if let ast::FunctionBody_::Native = &body.value {
-                    "native"
+                    Some("native")
                 } else {
-                    ""
+                    None
                 };
                 let signature = self.fn_signature_(signature);
                 let body = self.fn_body_(body);
-                cons!(modifier, " ", "define", " ", name, signature, body).group("spec_function")
+                cons!(
+                    modifier.map(|s| format!("{} ", s)),
+                    "define",
+                    " ",
+                    name,
+                    signature,
+                    body
+                )
+                .group("spec_function")
             }
             M::Variable {
                 is_global,
@@ -473,6 +514,9 @@ impl<'a> Formatter<'a> {
                     .nest(self.indent)
                     .append(";")
                     .group("spec_pragma")
+            }
+            SpecBlockMember_::Let { name, def } => {
+                cons!("let", name, "=", self.exp_(def), ";").group("spec_let")
             }
         }
     }
@@ -1221,6 +1265,8 @@ impl Documentable for ast::SpecConditionKind {
             InvariantPack => "invariant pack",
             InvariantUnpack => "invariant unpack",
             InvariantModule => "invariant module",
+            AbortsWith => "aborts_with",
+            Modifies => "modifies",
         }
         .to_doc()
     }
