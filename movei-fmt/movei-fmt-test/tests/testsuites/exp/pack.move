@@ -3,6 +3,9 @@
 
 module A {
     public fun new_preburn<CoinType>(): Preburn<CoinType> {
+        let a: A;
+        let a: A = A {};
+        let A { b: c, a } = aa;
         Preburn {
             // coins.
             coin: Coin::T { value: 10 },

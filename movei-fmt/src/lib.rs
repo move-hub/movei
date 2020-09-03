@@ -1026,7 +1026,16 @@ impl<'a> Formatter<'a> {
 
                 let fields = fields
                     .iter()
-                    .map(|(f, b)| f.to_doc().append(": ").append(self.bind_(b)))
+                    .map(|(f, b)| {
+                        let f = f.to_doc();
+                        let b = self.bind_(b);
+                        // short hand for struct bind
+                        if f == b {
+                            f
+                        } else {
+                            f.append(": ").append(b)
+                        }
+                    })
                     .intersperse(break_(",", ", "));
                 let fields = break_("{", "{ ")
                     .append(concat(fields))
@@ -1036,6 +1045,7 @@ impl<'a> Formatter<'a> {
 
                 ma.to_doc()
                     .append(tys_opt.flex_break("type_arguments"))
+                    .append(" ")
                     .append(fields.flex_break("bind_fields"))
             }
         }
@@ -1108,10 +1118,11 @@ impl<'a> Formatter<'a> {
                 };
 
                 let ty_opt = if let Some(ty) = ty_opt {
-                    self.type_(ty)
+                    Some(self.type_(ty))
                 } else {
-                    nil()
+                    None
                 };
+                let ty_opt = ty_opt.map(|ty| ": ".to_doc().append(ty));
                 let e = self.exp_(e.as_ref());
                 cons!("let ", bs, ty_opt, " = ", e)
             }
@@ -1129,10 +1140,11 @@ impl<'a> Formatter<'a> {
                 };
 
                 let ty_opt = if let Some(ty) = ty_opt {
-                    self.type_(ty)
+                    Some(self.type_(ty))
                 } else {
-                    nil()
+                    None
                 };
+                let ty_opt = ty_opt.map(|ty| ": ".to_doc().append(ty));
                 cons!("let ", bs, ty_opt)
             }
         };
