@@ -1,3 +1,4 @@
+address 0x1 {
 module A {
     spec module {
         /// Only mint and burn functions can change the total amount of currency.
@@ -47,11 +48,29 @@ module A {
                     ).total_value;
     }
 
+    spec fun split {
+        aborts_if token.value < amount;
+        // TODO: ensure result
+    }
+
+    spec fun scaling_factor {
+        // Todo: fix name_of()
+        pragma verify = false;
+        //let x  = name_of();
+        //aborts_if !exists<TokenInfo<TokenType>>(x);
+    }
+
     spec module {
         pragma verify = true, aborts_if_is_partial = true;
+        // asfd
         pragma
             verify = true,
             aborts_if_is_partial = true,
             aborts_if_is_partial = true;
+        // sdfvsdf
+        //sfd
+        pragma verify = true, aborts_if_is_partial = true;
+        // asfd
     }
+}
 }

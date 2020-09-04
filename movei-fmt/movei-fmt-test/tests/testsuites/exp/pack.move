@@ -13,4 +13,20 @@ module A {
             addr: 0x1,
         }
     }
+
+    public fun destroy_mint_capability<TokenType>(
+        cap: MintCapability<TokenType>,
+    ) {
+        let MintCapability<TokenType> { } = cap;
+    }
+
+    spec fun destroy_mint_capability {
+    }
+
+    spec fun scaling_factor {
+        // Todo: fix name_of()
+        pragma verify = false;
+        //let x  = name_of();
+        //aborts_if !exists<TokenInfo<TokenType>>(x);
+    }
 }
