@@ -88,7 +88,7 @@ impl<'a> Formatter<'a> {
         let mut doc = nil();
         let mut prev_comment: Option<Comment<'c>> = None;
         // keep the lines between two comments
-        while let Some(c) = comments.next() {
+        for c in comments {
             if let Some(prev) = prev_comment.as_ref() {
                 let distance = self.source[prev.span.start().to_usize()..c.span.end().to_usize()]
                     .chars()
