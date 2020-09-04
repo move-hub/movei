@@ -23,7 +23,7 @@ use move_ir_types::location::Loc;
 use move_lang::{
     parser::{
         ast,
-        ast::{SpecBlockTarget_, Type_},
+        ast::{SpecBlockMember_, SpecBlockTarget_, SpecConditionKind, Type_},
     },
     shared::{Address, Identifier, Name},
     FileCommentMap,
@@ -85,23 +85,22 @@ impl<'a> Formatter<'a> {
         let mut comments = comments.peekable();
         comments.peek()?;
 
-        let mut doc = force_break();
+        let mut doc = nil();
+        let mut prev_comment: Option<Comment<'c>> = None;
         // keep the lines between two comments
-        while let Some(c) = comments.next() {
-            doc = doc.append(c.content);
-            if let Some(next_comment) = comments.peek() {
-                let distance = self.source
-                    [c.span.end().to_usize()..next_comment.span.start().to_usize()]
+        for c in comments {
+            if let Some(prev) = prev_comment.as_ref() {
+                let distance = self.source[prev.span.start().to_usize()..c.span.end().to_usize()]
                     .chars()
                     .filter(|c| c == &'\n')
                     .count();
                 doc = doc.append(lines(distance));
-            } else {
-                // recheck the distance
-                doc = doc.append(line());
             }
+            doc = doc.append(c.content);
+            prev_comment = Some(c);
         }
-        Some(doc)
+
+        Some(doc.group("comments"))
     }
 
     pub fn definition(&self, expr: &ast::Definition) -> Document {
@@ -124,7 +123,7 @@ impl<'a> Formatter<'a> {
                 self.address_block(&loc, addr, ms)
             }
         };
-        comment_doc.to_doc().append(def)
+        comment_doc.map(|d| d.append(line())).to_doc().append(def)
     }
 
     fn extract_container_comments(
@@ -162,7 +161,7 @@ impl<'a> Formatter<'a> {
 
         let module_items = item_comments.into_iter().zip(modules).map(|(comments, m)| {
             let module = self.module(m);
-            comments.to_doc().append(module)
+            comments.map(|d| d.append(line())).to_doc().append(module)
         });
         let modules = concat(module_items.intersperse(lines(2)));
 
@@ -172,7 +171,7 @@ impl<'a> Formatter<'a> {
             .append(line())
             .append(modules)
             .append(line())
-            .append(comments_after)
+            .append(comments_after.map(|c| c.append(line())))
             .append("}");
 
         header.append(" ").append(body).group("address_block")
@@ -241,7 +240,10 @@ impl<'a> Formatter<'a> {
             let comments_before = self.pop_comments_between(span_start, span_end);
             let comments_doc = self.pretty_comments(comments_before);
 
-            let commented_item = comments_doc.to_doc().append(self.lang_item(item));
+            let commented_item = comments_doc
+                .map(|d| d.append(line()))
+                .to_doc()
+                .append(self.lang_item(item));
             body = body.append(commented_item);
 
             span_start = loc.span().end().to_usize();
@@ -319,33 +321,53 @@ impl<'a> Formatter<'a> {
                 "schema ".to_doc().append(n).append(tys)
             }
         };
-        let has_use = !uses.is_empty();
 
         // TODO: fix comments on uses.
         // in practice, it's rare to add comment on uses...
-        let uses = uses.iter().map(|u| self.use_(u)).intersperse(line());
+
+        let uses = if uses.is_empty() {
+            None
+        } else {
+            let us = uses.iter().map(|u| self.use_(u)).intersperse(line());
+            Some(concat(us))
+        };
 
         let mut spec_member_comments =
             self.extract_container_comments(loc.span(), members.iter().map(|m| m.loc.span()));
         let comments_after = spec_member_comments.pop().unwrap();
 
-        let spec_members = spec_member_comments
-            .into_iter()
-            .zip(members)
-            .map(|(c, m)| c.to_doc().append(self.spec_member_(m)))
-            .intersperse(line());
+        let members = if members.is_empty() {
+            None
+        } else {
+            let spec_members = spec_member_comments
+                .into_iter()
+                .zip(members)
+                .map(|(c, m)| {
+                    c.map(|d| d.append(line()))
+                        .to_doc()
+                        .append(self.spec_member_(m))
+                })
+                .intersperse(line());
+            Some(concat(spec_members))
+        };
 
-        let members = concat(spec_members);
+        let items = {
+            let items = uses;
+            let items = match (items, members) {
+                (Some(acc), Some(ms)) => Some(acc.append(lines(2)).append(ms)),
+                (Some(acc), None) => Some(acc),
+                (None, ms) => ms,
+            };
+            match (items, comments_after) {
+                (Some(acc), Some(d)) => Some(acc.append(lines(1)).append(d)),
+                (Some(acc), None) => Some(acc),
+                (None, ms) => ms,
+            }
+        };
 
-        let sep_lines = if has_use { Some(lines(2)) } else { None };
-
-        let items = concat(uses)
-            .append(sep_lines)
-            .append(members)
-            .append(comments_after);
-
-        let spec_body = line()
-            .append(items)
+        let spec_body = items
+            .map(|d| line().append(d))
+            .to_doc()
             .nest(self.indent)
             .surround("{", line().append("}"));
         cons!("spec ", target, " ", spec_body)
@@ -358,8 +380,20 @@ impl<'a> Formatter<'a> {
                 kind,
                 exp,
                 properties,
+                additional_exps,
             } => {
-                let exp = self.exp_(exp);
+                // ugly hack in move parser
+                let exp = if *kind == SpecConditionKind::AbortsWith
+                    || *kind == SpecConditionKind::Modifies
+                {
+                    None
+                } else {
+                    let exp = self.exp_(exp);
+                    let breakable_exp = break_("", " ")
+                        .append(exp.flex_break("exp"))
+                        .nest(self.indent);
+                    Some(breakable_exp)
+                };
 
                 let properties = if properties.is_empty() {
                     None
@@ -369,10 +403,31 @@ impl<'a> Formatter<'a> {
                             .flex_break("properties"),
                     )
                 };
-                let breakable_exp = break_("", " ")
-                    .append(exp.flex_break("exp"))
-                    .nest(self.indent);
-                cons!(kind, properties, breakable_exp, ";").group("spec_condition")
+
+                let no_with = exp.is_none();
+                let additional_exps = if !additional_exps.is_empty() {
+                    let additionals = concat(
+                        additional_exps
+                            .iter()
+                            .map(|p| self.exp_(p).group("additional_exp"))
+                            .intersperse(delim(",")),
+                    );
+
+                    let optional_with = if no_with {
+                        nil()
+                    } else {
+                        break_("", " ").append("with")
+                    };
+                    Some(
+                        optional_with
+                            .append((break_("", " ")).append(additionals).nest(self.indent))
+                            .flex_break("additional_exps"),
+                    )
+                } else {
+                    None
+                };
+
+                cons!(kind, properties, exp, additional_exps, ";").group("spec_condition")
             }
             M::Function {
                 uninterpreted,
@@ -381,15 +436,23 @@ impl<'a> Formatter<'a> {
                 body,
             } => {
                 let modifier = if *uninterpreted {
-                    "uninterpreted"
+                    Some("uninterpreted")
                 } else if let ast::FunctionBody_::Native = &body.value {
-                    "native"
+                    Some("native")
                 } else {
-                    ""
+                    None
                 };
                 let signature = self.fn_signature_(signature);
                 let body = self.fn_body_(body);
-                cons!(modifier, " ", "define", " ", name, signature, body).group("spec_function")
+                cons!(
+                    modifier.map(|s| format!("{} ", s)),
+                    "define",
+                    " ",
+                    name,
+                    signature,
+                    body
+                )
+                .group("spec_function")
             }
             M::Variable {
                 is_global,
@@ -474,6 +537,9 @@ impl<'a> Formatter<'a> {
                     .append(";")
                     .group("spec_pragma")
             }
+            SpecBlockMember_::Let { name, def } => {
+                cons!("let", name, "=", self.exp_(def), ";").group("spec_let")
+            }
         }
     }
 
@@ -545,16 +611,17 @@ impl<'a> Formatter<'a> {
                     let comment_after = comments.pop().unwrap();
 
                     let fs = {
-                        let fs = comments
-                            .into_iter()
-                            .zip(fs)
-                            .map(|(c, f)| c.to_doc().append(self.struct_field_(f)));
+                        let fs = comments.into_iter().zip(fs).map(|(c, f)| {
+                            c.map(|d| d.append(line()))
+                                .to_doc()
+                                .append(self.struct_field_(f))
+                        });
                         concat(fs.map(|f| f.append(",")).intersperse(line()))
                     };
                     // let fs = concat(fs.intersperse(",".to_doc().append(line())));
                     line()
                         .append(fs)
-                        .append(comment_after)
+                        .append(comment_after.map(|d| line().append(d)))
                         .nest(self.indent)
                         .surround(" {", line().append("}"))
                 }
@@ -829,7 +896,7 @@ impl<'a> Formatter<'a> {
                                     self.pop_comments_before(f.0.loc().span().start().to_usize());
                                 let comments = self.pretty_comments(comments);
                                 let f = self.pack_field_(f);
-                                cons!(comments, f)
+                                cons!(comments.map(|c| force_break().append(c).append(line())), f)
                             })
                             .intersperse(break_(",", ", ")),
                     );
@@ -980,19 +1047,38 @@ impl<'a> Formatter<'a> {
                     nil()
                 };
 
-                let fields = fields
-                    .iter()
-                    .map(|(f, b)| f.to_doc().append(": ").append(self.bind_(b)))
-                    .intersperse(break_(",", ", "));
-                let fields = break_("{", "{ ")
-                    .append(concat(fields))
-                    .nest(self.indent)
-                    .append(break_(",", " "))
-                    .append("}");
+                let fields = if fields.is_empty() {
+                    None
+                } else {
+                    let fields = fields
+                        .iter()
+                        .map(|(f, b)| {
+                            let f = f.to_doc();
+                            let b = self.bind_(b);
+                            // short hand for struct bind
+                            if f == b {
+                                f
+                            } else {
+                                f.append(": ").append(b)
+                            }
+                        })
+                        .intersperse(break_(",", ", "));
+                    Some(concat(fields))
+                };
+
+                let wrapped_fields = match fields {
+                    None => "{ }".to_doc(),
+                    Some(fs) => break_("{", "{ ")
+                        .append(fs)
+                        .nest(self.indent)
+                        .append(break_(",", " "))
+                        .append("}"),
+                };
 
                 ma.to_doc()
                     .append(tys_opt.flex_break("type_arguments"))
-                    .append(fields.flex_break("bind_fields"))
+                    .append(" ")
+                    .append(wrapped_fields.flex_break("bind_fields"))
             }
         }
     }
@@ -1020,7 +1106,11 @@ impl<'a> Formatter<'a> {
         let mut seq_items: Vec<_> = item_comments
             .into_iter()
             .zip(items)
-            .map(|(c, i)| c.to_doc().append(self.sequence_item_(i)))
+            .map(|(c, i)| {
+                c.map(|d| d.append(line()))
+                    .to_doc()
+                    .append(self.sequence_item_(i))
+            })
             .collect();
 
         uses.append(&mut seq_items);
@@ -1028,10 +1118,10 @@ impl<'a> Formatter<'a> {
         let mut sequences = uses;
         if let Some(e) = exp.as_ref() {
             let e = self.exp_(e).group("sequence_last_exp".to_string());
-            sequences.push(exp_comment.to_doc().append(e));
+            sequences.push(exp_comment.map(|d| d.append(line())).to_doc().append(e));
         };
         if let Some(c) = comment_after {
-            sequences.push(c);
+            sequences.push(line().append(c));
         }
 
         if sequences.is_empty() {
@@ -1064,10 +1154,11 @@ impl<'a> Formatter<'a> {
                 };
 
                 let ty_opt = if let Some(ty) = ty_opt {
-                    self.type_(ty)
+                    Some(self.type_(ty))
                 } else {
-                    nil()
+                    None
                 };
+                let ty_opt = ty_opt.map(|ty| ": ".to_doc().append(ty));
                 let e = self.exp_(e.as_ref());
                 cons!("let ", bs, ty_opt, " = ", e)
             }
@@ -1085,10 +1176,11 @@ impl<'a> Formatter<'a> {
                 };
 
                 let ty_opt = if let Some(ty) = ty_opt {
-                    self.type_(ty)
+                    Some(self.type_(ty))
                 } else {
-                    nil()
+                    None
                 };
+                let ty_opt = ty_opt.map(|ty| ": ".to_doc().append(ty));
                 cons!("let ", bs, ty_opt)
             }
         };
@@ -1221,6 +1313,8 @@ impl Documentable for ast::SpecConditionKind {
             InvariantPack => "invariant pack",
             InvariantUnpack => "invariant unpack",
             InvariantModule => "invariant module",
+            AbortsWith => "aborts_with",
+            Modifies => "modifies",
         }
         .to_doc()
     }
