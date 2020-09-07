@@ -20,6 +20,7 @@ use crate::{
 use codespan::{ByteIndex, Span};
 use itertools::Itertools;
 use move_ir_types::location::Loc;
+use move_lang::parser::ast::BinOp_;
 use move_lang::{
     parser::{
         ast,
@@ -982,8 +983,25 @@ impl<'a> Formatter<'a> {
                 cons!(op, e)
             }
             E::BinopExp(l, op, r) => {
-                let l = self.exp_(l.as_ref());
-                let r = self.exp_(r.as_ref());
+                let l = {
+                    match &l.as_ref().value {
+                        E::BinopExp(_, sub_op, _)
+                            if get_precedence(sub_op.value) < get_precedence(op.value) =>
+                        {
+                            self.exp_(l.as_ref()).surround("(", ")")
+                        }
+                        _ => self.exp_(l.as_ref()),
+                    }
+                };
+
+                let r = match &r.as_ref().value {
+                    E::BinopExp(_, sub_op, _)
+                        if get_precedence(sub_op.value) < get_precedence(op.value) =>
+                    {
+                        self.exp_(r.as_ref()).surround("(", ")")
+                    }
+                    _ => self.exp_(r.as_ref()),
+                };
                 cons!(
                     l.flex_break("left_exp"),
                     " ",
@@ -1342,5 +1360,32 @@ where
 {
     fn to_doc(&self) -> Document {
         self.value.to_doc()
+    }
+}
+
+fn get_precedence(op: BinOp_) -> u32 {
+    use BinOp_ as Tok;
+    match op {
+        // Reserved minimum precedence value is 1
+        Tok::Implies => 2,
+        Tok::Or => 3,
+        Tok::And => 4,
+        Tok::Eq => 5,
+        Tok::Neq => 5,
+        Tok::Lt => 5,
+        Tok::Gt => 5,
+        Tok::Le => 5,
+        Tok::Ge => 5,
+        Tok::Range => 6,
+        Tok::BitOr => 7,
+        Tok::Xor => 8,
+        Tok::BitAnd => 9,
+        Tok::Shl => 10,
+        Tok::Shr => 10,
+        Tok::Add => 11,
+        Tok::Sub => 11,
+        Tok::Mul => 12,
+        Tok::Div => 12,
+        Tok::Mod => 12,
     }
 }

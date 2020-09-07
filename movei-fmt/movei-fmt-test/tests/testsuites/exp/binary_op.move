@@ -13,6 +13,10 @@ module A {
                 CoreAddresses::LIBRA_ROOT_ADDRESS(),
             0,
         );
+        let a = (a + b) * c;
+        let a = a + b * c / d;
+        let a = a + b * c - d;
+        let a = (a + b) * (c - d);
     }
 }
 
