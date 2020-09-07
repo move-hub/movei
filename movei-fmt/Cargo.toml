@@ -1,6 +1,6 @@
 [package]
 name = "movei-fmt"
-version = "0.1.1-alpha.0"
+version = "0.1.1"
 authors = ["caojiafeng <funfriendcjf@gmail.com>"]
 edition = "2018"
 
