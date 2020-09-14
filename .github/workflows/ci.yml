@@ -37,6 +37,9 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Check formatting
+        run: cargo fmt -- --check
+
       - id: cargo-deps
         name: (load cache) Download dependencies
         uses: actions/cache@v2
@@ -63,9 +66,6 @@ jobs:
       - if: ${{ steps.cargo-build.outputs.cache-hit != 'true' }}
         name: Build with --lib
         run: cargo build --lib
-
-      - name: Check formatting
-        run: cargo fmt -- --check
 
       - name: Build
         run: cargo build --workspace

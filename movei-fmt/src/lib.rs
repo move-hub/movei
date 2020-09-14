@@ -20,11 +20,10 @@ use crate::{
 use codespan::{ByteIndex, Span};
 use itertools::Itertools;
 use move_ir_types::location::Loc;
-use move_lang::parser::ast::BinOp_;
 use move_lang::{
     parser::{
         ast,
-        ast::{SpecBlockMember_, SpecBlockTarget_, SpecConditionKind, Type_},
+        ast::{BinOp_, SpecBlockMember_, SpecBlockTarget_, SpecConditionKind, Type_},
     },
     shared::{Address, Identifier, Name},
     FileCommentMap,
