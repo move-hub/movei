@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 anyhow="1"
-libra-state-view="0.1.0"
 libra-types = "0.1.0"
 move-core-types = "0.1.0"
 move-vm-runtime = "0.1.0"

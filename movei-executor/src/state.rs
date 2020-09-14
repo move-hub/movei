@@ -1,12 +1,11 @@
 use anyhow::Result;
-use libra_state_view::StateView;
 use libra_types::{
     access_path::AccessPath,
     write_set::{WriteOp, WriteSet},
 };
 use move_core_types::{
     account_address::AccountAddress,
-    language_storage::{ModuleId, ResourceKey, StructTag, TypeTag},
+    language_storage::{ModuleId, ResourceKey, StructTag},
     vm_status::StatusCode,
 };
 use move_vm_runtime::data_cache::RemoteCache;
@@ -46,6 +45,11 @@ impl FakeDataStore {
         }
     }
 
+    fn get(&self, access_path: &AccessPath) -> Result<Option<Vec<u8>>> {
+        // Since the data is in-memory, it can't fail.
+        Ok(self.data.get(access_path).cloned())
+    }
+
     /// Sets a (key, value) pair within this data store.
     ///
     /// Returns the previous data if the key was occupied.
@@ -73,21 +77,6 @@ impl FakeDataStore {
     }
 }
 
-impl StateView for FakeDataStore {
-    fn get(&self, access_path: &AccessPath) -> Result<Option<Vec<u8>>> {
-        // Since the data is in-memory, it can't fail.
-        Ok(self.data.get(access_path).cloned())
-    }
-
-    fn multi_get(&self, _access_paths: &[AccessPath]) -> Result<Vec<Option<Vec<u8>>>> {
-        unimplemented!();
-    }
-
-    fn is_genesis(&self) -> bool {
-        self.data.is_empty()
-    }
-}
-
 impl RemoteCache for FakeDataStore {
     fn get_module(&self, module_id: &ModuleId) -> VMResult<Option<Vec<u8>>> {
         let ap = AccessPath::from(module_id);
@@ -98,13 +87,9 @@ impl RemoteCache for FakeDataStore {
     fn get_resource(
         &self,
         address: &AccountAddress,
-        tag: &TypeTag,
+        struct_tag: &StructTag,
     ) -> PartialVMResult<Option<Vec<u8>>> {
-        let struct_tag = match tag {
-            TypeTag::Struct(struct_tag) => struct_tag.clone(),
-            _ => return Err(PartialVMError::new(StatusCode::VALUE_DESERIALIZATION_ERROR)),
-        };
-        let ap = create_access_path(*address, struct_tag);
+        let ap = create_access_path(*address, struct_tag.clone());
         self.get(&ap)
             .map_err(|_| PartialVMError::new(StatusCode::STORAGE_ERROR))
     }

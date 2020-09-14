@@ -203,7 +203,7 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: List<(isize, Mo
 
             Document::Line(i) => {
                 for _ in 0..i {
-                    b.push_str("\n");
+                    b.push('\n');
                 }
                 b.push_str(" ".repeat(indent as usize).as_str());
                 width = indent;
@@ -217,7 +217,7 @@ fn fmt(b: &mut String, limit: isize, mut width: isize, mut docs: List<(isize, Mo
                     }
                     Mode::Broken => {
                         b.push_str(broken.as_str());
-                        b.push_str("\n");
+                        b.push('\n');
                         b.push_str(" ".repeat(indent as usize).as_str());
                         indent as isize
                     }
