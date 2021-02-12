@@ -12,7 +12,7 @@ anyhow="1.0"
 move-lang = "0.0.1"
 diff = "0.1"
 colored = "2.0"
-env_logger = "0.7"
+env_logger = "0.8"
 log = "0.4"
 #colored_diff = "0.2"
 movei-fmt = {path = "../../movei-fmt"}
